@@ -21,6 +21,11 @@ repositories, is detected from the project and supplied by JMC when missing.
 * Windows, Linux or macOS on x64 or arm64
 * No system Java, Gradle or Minecraft installation is required
 
+CI runs on Linux, Windows and macOS, on x64 runners only. arm64 is untested in
+CI: the platform and architecture detection paths exist and `npm run package`
+produces an arm64 release archive, but no build in this repository is executed on
+arm64.
+
 ## Install
 
 Linux and macOS:
@@ -36,13 +41,18 @@ Windows:
 ```
 
 Both scripts build the bundle if needed, copy the launcher into the JMC home
-directory, add that directory to PATH and verify the installation. To install
-through npm instead:
+directory, add that directory to PATH and verify the installation. A local npm
+install is also available:
 
 ```bash
-./scripts/install-npm.sh
-npm install --global jmc
+npm run build
+npm run install-local
 ```
+
+This repository is not published to a public npm registry. The npm package is
+named `@thecoolersyn/jmc`, and `npm install --global jmc` would install an
+unrelated package. Use the scripts above, or link a clone with `npm link`, to get
+the `jmc` launcher on PATH.
 
 After installation `jmc` resolves from any directory:
 
@@ -159,6 +169,25 @@ Suggested action: Add the repository that publishes the missing artifact to the 
 | 5 | Runtime smoke test failure |
 | 6 | Offline mode could not find a required artifact |
 
+## Loader support
+
+Loader support is not uniform. The table below separates the loaders JMC has
+proven end to end from the loaders it only detects and parses.
+
+| Loader | Status | Notes |
+| --- | --- | --- |
+| Fabric (Loom) | Verified by a real end-to-end build | CI builds a Loom project and asserts the packaged artifact |
+| Generic Gradle (`java` plugin) | Verified by a real end-to-end build | CI compiles, packages, validates and reports on a plain Gradle project |
+| NeoForge (ModDevGradle 2.x) | Verified by a real end-to-end build | `tests/integration/loader-builds.test.mjs` builds the `neoforge-1.21` fixture and asserts COMPILE, PACKAGE and VALIDATE all pass |
+| Forge (ForgeGradle 2.x to 7.x) | Detected and parsed only | Per-plugin Gradle and JDK rules are covered by tests, and a real 1.12.2 build selects Gradle 4.10.3 with a managed Java 8 runtime, but ForgeGradle 2.3 no longer resolves from the live Forge maven so the end-to-end build is not claimed |
+| Quilt (Quilt Loom) | Detected and parsed only | Fixtures cover detection; no end-to-end build is run in CI |
+| Maven | Detected and parsed only | Fixtures cover detection and dependency coordinates |
+
+A loader marked "detected and parsed only" has its detection, loader metadata
+extraction, toolchain selection and validation rules covered by tests, but no
+supported end-to-end build in this repository. No loader row should be read as a
+claim that a real build passed unless it is marked verified.
+
 ## Architecture
 
 ```text
@@ -216,9 +245,13 @@ authorization to run build scripts; pass `--yes` or set
 ## Security
 
 A project build executes build-system code. JMC reports this clearly on the first
-build of a project and requires explicit authorization. Downloads are validated
-against published checksums where the source provides them, cached artifacts are
-checksum-verified on reuse, and corrupt entries are discarded rather than reused.
+build of a project and requires explicit authorization. The approval covers a
+SHA-256 digest of every build script the project can execute, including
+subprojects, `buildSrc`, the Gradle wrapper and any `apply from:` target; changing
+any of them revokes the approval. Downloads are verified against the checksum the
+source publishes, and a distribution whose checksum cannot be fetched is refused
+rather than installed. Cached Gradle archives and JDK installs are checksum
+re-verified on reuse, and corrupt entries are discarded rather than reused.
 `--offline` guarantees no network requests are made.
 
 ## Documentation

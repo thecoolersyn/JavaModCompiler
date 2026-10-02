@@ -111,6 +111,33 @@ A mappings-to-Minecraft mismatch is an error when the mapping metadata states th
 version with high confidence and a warning when the version was inferred from a
 file name. An unverified relationship is never silently accepted.
 
+## Mappings argument versus loader-supplied mappings
+
+A mappings argument and a remapping loader can both describe the namespace the
+build compiles against, and JMC treats them differently.
+
+* For loaders that own their mappings, the delegated build decides. Loom reads
+  the `mappings` configuration from the project build file, ModDevGradle reads its
+  `neoForge { mappings { ... } }` or `minecraft { mappings channel: ... }` block,
+  and ForgeGradle reads its `minecraft { mappings }` setting. JMC stages the files
+  you passed into the workspace mappings directory, records them in the build lock
+  and validates that they are a format it can read, but it does not inject them
+  into the loader's configuration. The loader's own mappings win.
+* For a project that does not use a remapping loader, the generic adapter runs the
+  project's own tasks, and the staged mappings are what JMC itself can read when it
+  has to validate or report namespaces.
+* Version compatibility is always checked. If the staged mappings declare a
+  Minecraft version that contradicts the version the project resolves to, JMC fails
+  the build at `DISCOVER` with a `minecraft-mapping-mismatch` diagnostic, even when
+  a loader would have ignored the argument. A silent contradiction is reported
+  rather than ignored.
+* Passing a mappings path that does not exist, or a file whose header JMC cannot
+  recognise, fails the build at `PREPARE` rather than being ignored.
+
+In short: the mappings argument is validated and recorded, but for Loom,
+ModDevGradle and ForgeGradle the effective mappings are the ones the project
+declares.
+
 ## Plugins
 
 Plugins live in `~/.umc/plugins/`. A plugin is a JavaScript module, or a directory

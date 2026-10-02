@@ -75,8 +75,14 @@ Managed runtimes live in `~/.umc/runtimes/` and the system installation is never
 modified.
 
 `src/gradle` prefers the project Gradle wrapper. When the project has no wrapper,
-JMC detects a compatible version, downloads the distribution into its own cache
-and invokes it with a private `GRADLE_USER_HOME`.
+JMC resolves a compatible version from per-plugin compatibility rules, verifies
+the published SHA-256 of the distribution before it is installed, re-verifies the
+cached archive and its marker on reuse, and invokes it with a private
+`GRADLE_USER_HOME`. A distribution whose checksum cannot be fetched is refused
+rather than installed. Each rule carries its own Gradle range and JDK major, so a
+1.12.2 ForgeGradle 2 build selects Gradle 4 with Java 8 while a Fabric Loom build
+selects Gradle 8 with Java 17. An empty rule intersection is reported with the
+conflicting plugins instead of silently choosing a version.
 
 `src/mappings` is the mapping subsystem. `MappingProvider` implementations detect
 and describe mapping sets. The registry probes every provider, scores the
@@ -107,22 +113,31 @@ configuration targets, while leaving JDK and library classes untouched.
 `configurePackaging`, `validate` and `runtimeTest`. Adapters exist for Fabric,
 Quilt, NeoForge and Forge, all derived from `GenericGradleAdapter`, which
 delegates to the project's own build tasks inside the isolated environment.
+Packaging rejects a build that produced only a development JAR, and rejects a
+remapping loader's output when the selected artifact is not a remapped JAR.
 
 `src/validate` implements static validation. `bytecode.ts` checks class file
 versions, duplicate classes, package and path consistency, JAR integrity, unsafe
 archive entries and loader metadata. `mixin.ts` parses mixin configurations,
 resolves declared targets and reports missing mixin classes, shadow members,
-injection points, refmaps and environment mismatches. `sides.ts` classifies
-client-only, server-only and common classes and detects server code that
-references client-only types.
+injection points, refmaps and environment mismatches. It also resolves the mixin
+configurations that `fabric.mod.json` and `quilt.mod.json` declare, and requires
+both the configuration and every class it names to be present in the artifact.
+`sides.ts` classifies client-only, server-only and common classes and detects
+server code that references client-only types.
 
 `src/cache` implements the validated content cache. `ContentCache` stores
 artifacts per repository and toolchain, verifies checksums on reuse, removes
 corrupt entries and prevents reuse across incompatible toolchains.
 
 `src/runtime` implements the disposable runtime sandbox and crash classification.
-`src/security` implements build script authorization. `src/diagnostics` converts
-raw build output into structured, evidence-based diagnostics.
+`src/security` implements build script authorization: the approval digest is a
+SHA-256 over the relative path and the contents of every build script the project
+can execute, covering subprojects, `buildSrc`, included builds, `apply from:`
+targets, the Gradle wrapper and Maven configuration. `--yes` and
+`JMC_TRUST_PROJECT_SCRIPTS=1` authorize a single run and never persist a record.
+`src/diagnostics` converts raw build output into structured, evidence-based
+diagnostics.
 
 ### Core
 

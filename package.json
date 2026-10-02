@@ -1,5 +1,5 @@
 {
-  "name": "jmc",
+  "name": "@thecoolersyn/jmc",
   "version": "1.0.0",
   "description": "JMC - Java Mod Compiler. Universal Minecraft mod/client compile and build orchestrator.",
   "license": "MIT",
@@ -27,7 +27,7 @@
     "test:all": "npm run test && npm run test:integration",
     "lint:comments": "node scripts/comment-scan.mjs",
     "verify": "npm run lint:comments && npm run typecheck && npm run test",
-    "install-local": "node scripts/install-local.mjs",
+    "install-local": "node scripts/install.mjs",
     "package": "node scripts/package-dist.mjs",
     "prepack": "npm run build",
     "test:lib": "node scripts/build-test-lib.mjs",
@@ -53,8 +53,10 @@
   ],
   "exports": {
     ".": {
-      "types": "./types/index.d.ts",
       "import": "./dist/bin/jmc.mjs"
     }
+  },
+  "allowScripts": {
+    "esbuild@0.24.2": true
   }
 }
