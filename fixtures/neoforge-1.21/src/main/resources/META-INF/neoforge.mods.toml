@@ -1,0 +1,8 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+
+[[mods]]
+modId="modernforge"
+version="1.0.0"
+description="A modern NeoForge fixture"

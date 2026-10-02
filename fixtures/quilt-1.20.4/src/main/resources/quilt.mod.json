@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "quilt_loader": {
+    "group": "org.quiltmc",
+    "id": "quilt_loader",
+    "version": "0.22.0"
+  },
+  "id": "quiltmod",
+  "version": "1.0.0",
+  "depends": {
+    "minecraft": "1.20.4"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "plainmod",
+  "version": "1.0.0",
+  "depends": {
+    "minecraft": "1.7.10"
+  }
+}

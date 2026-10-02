@@ -1,0 +1,8 @@
+modLoader="javafml"
+loaderVersion="[36,)"
+license="MIT"
+
+[[mods]]
+modId="legacyforge"
+version="1.0.0"
+description="A 1.12 era Forge fixture"

@@ -1,0 +1,121 @@
+# yarn mappings for Minecraft 1.20.1
+net.minecraft.class_0 -> net.minecraft.named.NamedClass0:
+    field_0 -> fieldName0
+    method_0 ()V -> methodName0
+net.minecraft.class_1 -> net.minecraft.named.NamedClass1:
+    field_1 -> fieldName1
+    method_1 ()V -> methodName1
+net.minecraft.class_2 -> net.minecraft.named.NamedClass2:
+    field_2 -> fieldName2
+    method_2 ()V -> methodName2
+net.minecraft.class_3 -> net.minecraft.named.NamedClass3:
+    field_3 -> fieldName3
+    method_3 ()V -> methodName3
+net.minecraft.class_4 -> net.minecraft.named.NamedClass4:
+    field_4 -> fieldName4
+    method_4 ()V -> methodName4
+net.minecraft.class_5 -> net.minecraft.named.NamedClass5:
+    field_5 -> fieldName5
+    method_5 ()V -> methodName5
+net.minecraft.class_6 -> net.minecraft.named.NamedClass6:
+    field_6 -> fieldName6
+    method_6 ()V -> methodName6
+net.minecraft.class_7 -> net.minecraft.named.NamedClass7:
+    field_7 -> fieldName7
+    method_7 ()V -> methodName7
+net.minecraft.class_8 -> net.minecraft.named.NamedClass8:
+    field_8 -> fieldName8
+    method_8 ()V -> methodName8
+net.minecraft.class_9 -> net.minecraft.named.NamedClass9:
+    field_9 -> fieldName9
+    method_9 ()V -> methodName9
+net.minecraft.class_10 -> net.minecraft.named.NamedClass10:
+    field_10 -> fieldName10
+    method_10 ()V -> methodName10
+net.minecraft.class_11 -> net.minecraft.named.NamedClass11:
+    field_11 -> fieldName11
+    method_11 ()V -> methodName11
+net.minecraft.class_12 -> net.minecraft.named.NamedClass12:
+    field_12 -> fieldName12
+    method_12 ()V -> methodName12
+net.minecraft.class_13 -> net.minecraft.named.NamedClass13:
+    field_13 -> fieldName13
+    method_13 ()V -> methodName13
+net.minecraft.class_14 -> net.minecraft.named.NamedClass14:
+    field_14 -> fieldName14
+    method_14 ()V -> methodName14
+net.minecraft.class_15 -> net.minecraft.named.NamedClass15:
+    field_15 -> fieldName15
+    method_15 ()V -> methodName15
+net.minecraft.class_16 -> net.minecraft.named.NamedClass16:
+    field_16 -> fieldName16
+    method_16 ()V -> methodName16
+net.minecraft.class_17 -> net.minecraft.named.NamedClass17:
+    field_17 -> fieldName17
+    method_17 ()V -> methodName17
+net.minecraft.class_18 -> net.minecraft.named.NamedClass18:
+    field_18 -> fieldName18
+    method_18 ()V -> methodName18
+net.minecraft.class_19 -> net.minecraft.named.NamedClass19:
+    field_19 -> fieldName19
+    method_19 ()V -> methodName19
+net.minecraft.class_20 -> net.minecraft.named.NamedClass20:
+    field_20 -> fieldName20
+    method_20 ()V -> methodName20
+net.minecraft.class_21 -> net.minecraft.named.NamedClass21:
+    field_21 -> fieldName21
+    method_21 ()V -> methodName21
+net.minecraft.class_22 -> net.minecraft.named.NamedClass22:
+    field_22 -> fieldName22
+    method_22 ()V -> methodName22
+net.minecraft.class_23 -> net.minecraft.named.NamedClass23:
+    field_23 -> fieldName23
+    method_23 ()V -> methodName23
+net.minecraft.class_24 -> net.minecraft.named.NamedClass24:
+    field_24 -> fieldName24
+    method_24 ()V -> methodName24
+net.minecraft.class_25 -> net.minecraft.named.NamedClass25:
+    field_25 -> fieldName25
+    method_25 ()V -> methodName25
+net.minecraft.class_26 -> net.minecraft.named.NamedClass26:
+    field_26 -> fieldName26
+    method_26 ()V -> methodName26
+net.minecraft.class_27 -> net.minecraft.named.NamedClass27:
+    field_27 -> fieldName27
+    method_27 ()V -> methodName27
+net.minecraft.class_28 -> net.minecraft.named.NamedClass28:
+    field_28 -> fieldName28
+    method_28 ()V -> methodName28
+net.minecraft.class_29 -> net.minecraft.named.NamedClass29:
+    field_29 -> fieldName29
+    method_29 ()V -> methodName29
+net.minecraft.class_30 -> net.minecraft.named.NamedClass30:
+    field_30 -> fieldName30
+    method_30 ()V -> methodName30
+net.minecraft.class_31 -> net.minecraft.named.NamedClass31:
+    field_31 -> fieldName31
+    method_31 ()V -> methodName31
+net.minecraft.class_32 -> net.minecraft.named.NamedClass32:
+    field_32 -> fieldName32
+    method_32 ()V -> methodName32
+net.minecraft.class_33 -> net.minecraft.named.NamedClass33:
+    field_33 -> fieldName33
+    method_33 ()V -> methodName33
+net.minecraft.class_34 -> net.minecraft.named.NamedClass34:
+    field_34 -> fieldName34
+    method_34 ()V -> methodName34
+net.minecraft.class_35 -> net.minecraft.named.NamedClass35:
+    field_35 -> fieldName35
+    method_35 ()V -> methodName35
+net.minecraft.class_36 -> net.minecraft.named.NamedClass36:
+    field_36 -> fieldName36
+    method_36 ()V -> methodName36
+net.minecraft.class_37 -> net.minecraft.named.NamedClass37:
+    field_37 -> fieldName37
+    method_37 ()V -> methodName37
+net.minecraft.class_38 -> net.minecraft.named.NamedClass38:
+    field_38 -> fieldName38
+    method_38 ()V -> methodName38
+net.minecraft.class_39 -> net.minecraft.named.NamedClass39:
+    field_39 -> fieldName39
+    method_39 ()V -> methodName39

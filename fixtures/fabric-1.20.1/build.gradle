@@ -1,0 +1,16 @@
+plugins {
+    id 'fabric-loom' version '1.6.12'
+}
+
+version = '1.0.0'
+group = 'com.example'
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+}
+
+tasks.register('remapJar') {
+    dependsOn 'build'
+}

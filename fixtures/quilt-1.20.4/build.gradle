@@ -1,0 +1,12 @@
+plugins {
+    id 'org.quiltmc.loom' version '1.1.4'
+}
+
+version = '1.0.0'
+group = 'com.example'
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "org.quiltmc:yarn:${project.minecraft_version}:v2"
+    modImplementation "org.quiltmc:quilt-loader:${project.loader_version}"
+}

@@ -1,0 +1,242 @@
+tiny	2	0	official	intermediary	named
+
+c	net/minecraft/class_0	net/minecraft/Class0	net/minecraft/named/Class0
+	f	field_0	net/minecraft/Class0/field_0	fieldName0	fieldNameMapped0
+	m	()V	method_0	net/minecraft/Class0/method_0	methodName0	methodNameMapped0
+	m	(I)Lnet/minecraft/Class0;	withArgs_0	net/minecraft/Class0/withArgs_0	withArgsName0	withArgsMapped0
+c	net/minecraft/class_1	net/minecraft/Class1	net/minecraft/named/Class1
+	f	field_1	net/minecraft/Class1/field_1	fieldName1	fieldNameMapped1
+	m	()V	method_1	net/minecraft/Class1/method_1	methodName1	methodNameMapped1
+	m	(I)Lnet/minecraft/Class1;	withArgs_1	net/minecraft/Class1/withArgs_1	withArgsName1	withArgsMapped1
+c	net/minecraft/class_2	net/minecraft/Class2	net/minecraft/named/Class2
+	f	field_2	net/minecraft/Class2/field_2	fieldName2	fieldNameMapped2
+	m	()V	method_2	net/minecraft/Class2/method_2	methodName2	methodNameMapped2
+	m	(I)Lnet/minecraft/Class2;	withArgs_2	net/minecraft/Class2/withArgs_2	withArgsName2	withArgsMapped2
+c	net/minecraft/class_3	net/minecraft/Class3	net/minecraft/named/Class3
+	f	field_3	net/minecraft/Class3/field_3	fieldName3	fieldNameMapped3
+	m	()V	method_3	net/minecraft/Class3/method_3	methodName3	methodNameMapped3
+	m	(I)Lnet/minecraft/Class3;	withArgs_3	net/minecraft/Class3/withArgs_3	withArgsName3	withArgsMapped3
+c	net/minecraft/class_4	net/minecraft/Class4	net/minecraft/named/Class4
+	f	field_4	net/minecraft/Class4/field_4	fieldName4	fieldNameMapped4
+	m	()V	method_4	net/minecraft/Class4/method_4	methodName4	methodNameMapped4
+	m	(I)Lnet/minecraft/Class4;	withArgs_4	net/minecraft/Class4/withArgs_4	withArgsName4	withArgsMapped4
+c	net/minecraft/class_5	net/minecraft/Class5	net/minecraft/named/Class5
+	f	field_5	net/minecraft/Class5/field_5	fieldName5	fieldNameMapped5
+	m	()V	method_5	net/minecraft/Class5/method_5	methodName5	methodNameMapped5
+	m	(I)Lnet/minecraft/Class5;	withArgs_5	net/minecraft/Class5/withArgs_5	withArgsName5	withArgsMapped5
+c	net/minecraft/class_6	net/minecraft/Class6	net/minecraft/named/Class6
+	f	field_6	net/minecraft/Class6/field_6	fieldName6	fieldNameMapped6
+	m	()V	method_6	net/minecraft/Class6/method_6	methodName6	methodNameMapped6
+	m	(I)Lnet/minecraft/Class6;	withArgs_6	net/minecraft/Class6/withArgs_6	withArgsName6	withArgsMapped6
+c	net/minecraft/class_7	net/minecraft/Class7	net/minecraft/named/Class7
+	f	field_7	net/minecraft/Class7/field_7	fieldName7	fieldNameMapped7
+	m	()V	method_7	net/minecraft/Class7/method_7	methodName7	methodNameMapped7
+	m	(I)Lnet/minecraft/Class7;	withArgs_7	net/minecraft/Class7/withArgs_7	withArgsName7	withArgsMapped7
+c	net/minecraft/class_8	net/minecraft/Class8	net/minecraft/named/Class8
+	f	field_8	net/minecraft/Class8/field_8	fieldName8	fieldNameMapped8
+	m	()V	method_8	net/minecraft/Class8/method_8	methodName8	methodNameMapped8
+	m	(I)Lnet/minecraft/Class8;	withArgs_8	net/minecraft/Class8/withArgs_8	withArgsName8	withArgsMapped8
+c	net/minecraft/class_9	net/minecraft/Class9	net/minecraft/named/Class9
+	f	field_9	net/minecraft/Class9/field_9	fieldName9	fieldNameMapped9
+	m	()V	method_9	net/minecraft/Class9/method_9	methodName9	methodNameMapped9
+	m	(I)Lnet/minecraft/Class9;	withArgs_9	net/minecraft/Class9/withArgs_9	withArgsName9	withArgsMapped9
+c	net/minecraft/class_10	net/minecraft/Class10	net/minecraft/named/Class10
+	f	field_10	net/minecraft/Class10/field_10	fieldName10	fieldNameMapped10
+	m	()V	method_10	net/minecraft/Class10/method_10	methodName10	methodNameMapped10
+	m	(I)Lnet/minecraft/Class10;	withArgs_10	net/minecraft/Class10/withArgs_10	withArgsName10	withArgsMapped10
+c	net/minecraft/class_11	net/minecraft/Class11	net/minecraft/named/Class11
+	f	field_11	net/minecraft/Class11/field_11	fieldName11	fieldNameMapped11
+	m	()V	method_11	net/minecraft/Class11/method_11	methodName11	methodNameMapped11
+	m	(I)Lnet/minecraft/Class11;	withArgs_11	net/minecraft/Class11/withArgs_11	withArgsName11	withArgsMapped11
+c	net/minecraft/class_12	net/minecraft/Class12	net/minecraft/named/Class12
+	f	field_12	net/minecraft/Class12/field_12	fieldName12	fieldNameMapped12
+	m	()V	method_12	net/minecraft/Class12/method_12	methodName12	methodNameMapped12
+	m	(I)Lnet/minecraft/Class12;	withArgs_12	net/minecraft/Class12/withArgs_12	withArgsName12	withArgsMapped12
+c	net/minecraft/class_13	net/minecraft/Class13	net/minecraft/named/Class13
+	f	field_13	net/minecraft/Class13/field_13	fieldName13	fieldNameMapped13
+	m	()V	method_13	net/minecraft/Class13/method_13	methodName13	methodNameMapped13
+	m	(I)Lnet/minecraft/Class13;	withArgs_13	net/minecraft/Class13/withArgs_13	withArgsName13	withArgsMapped13
+c	net/minecraft/class_14	net/minecraft/Class14	net/minecraft/named/Class14
+	f	field_14	net/minecraft/Class14/field_14	fieldName14	fieldNameMapped14
+	m	()V	method_14	net/minecraft/Class14/method_14	methodName14	methodNameMapped14
+	m	(I)Lnet/minecraft/Class14;	withArgs_14	net/minecraft/Class14/withArgs_14	withArgsName14	withArgsMapped14
+c	net/minecraft/class_15	net/minecraft/Class15	net/minecraft/named/Class15
+	f	field_15	net/minecraft/Class15/field_15	fieldName15	fieldNameMapped15
+	m	()V	method_15	net/minecraft/Class15/method_15	methodName15	methodNameMapped15
+	m	(I)Lnet/minecraft/Class15;	withArgs_15	net/minecraft/Class15/withArgs_15	withArgsName15	withArgsMapped15
+c	net/minecraft/class_16	net/minecraft/Class16	net/minecraft/named/Class16
+	f	field_16	net/minecraft/Class16/field_16	fieldName16	fieldNameMapped16
+	m	()V	method_16	net/minecraft/Class16/method_16	methodName16	methodNameMapped16
+	m	(I)Lnet/minecraft/Class16;	withArgs_16	net/minecraft/Class16/withArgs_16	withArgsName16	withArgsMapped16
+c	net/minecraft/class_17	net/minecraft/Class17	net/minecraft/named/Class17
+	f	field_17	net/minecraft/Class17/field_17	fieldName17	fieldNameMapped17
+	m	()V	method_17	net/minecraft/Class17/method_17	methodName17	methodNameMapped17
+	m	(I)Lnet/minecraft/Class17;	withArgs_17	net/minecraft/Class17/withArgs_17	withArgsName17	withArgsMapped17
+c	net/minecraft/class_18	net/minecraft/Class18	net/minecraft/named/Class18
+	f	field_18	net/minecraft/Class18/field_18	fieldName18	fieldNameMapped18
+	m	()V	method_18	net/minecraft/Class18/method_18	methodName18	methodNameMapped18
+	m	(I)Lnet/minecraft/Class18;	withArgs_18	net/minecraft/Class18/withArgs_18	withArgsName18	withArgsMapped18
+c	net/minecraft/class_19	net/minecraft/Class19	net/minecraft/named/Class19
+	f	field_19	net/minecraft/Class19/field_19	fieldName19	fieldNameMapped19
+	m	()V	method_19	net/minecraft/Class19/method_19	methodName19	methodNameMapped19
+	m	(I)Lnet/minecraft/Class19;	withArgs_19	net/minecraft/Class19/withArgs_19	withArgsName19	withArgsMapped19
+c	net/minecraft/class_20	net/minecraft/Class20	net/minecraft/named/Class20
+	f	field_20	net/minecraft/Class20/field_20	fieldName20	fieldNameMapped20
+	m	()V	method_20	net/minecraft/Class20/method_20	methodName20	methodNameMapped20
+	m	(I)Lnet/minecraft/Class20;	withArgs_20	net/minecraft/Class20/withArgs_20	withArgsName20	withArgsMapped20
+c	net/minecraft/class_21	net/minecraft/Class21	net/minecraft/named/Class21
+	f	field_21	net/minecraft/Class21/field_21	fieldName21	fieldNameMapped21
+	m	()V	method_21	net/minecraft/Class21/method_21	methodName21	methodNameMapped21
+	m	(I)Lnet/minecraft/Class21;	withArgs_21	net/minecraft/Class21/withArgs_21	withArgsName21	withArgsMapped21
+c	net/minecraft/class_22	net/minecraft/Class22	net/minecraft/named/Class22
+	f	field_22	net/minecraft/Class22/field_22	fieldName22	fieldNameMapped22
+	m	()V	method_22	net/minecraft/Class22/method_22	methodName22	methodNameMapped22
+	m	(I)Lnet/minecraft/Class22;	withArgs_22	net/minecraft/Class22/withArgs_22	withArgsName22	withArgsMapped22
+c	net/minecraft/class_23	net/minecraft/Class23	net/minecraft/named/Class23
+	f	field_23	net/minecraft/Class23/field_23	fieldName23	fieldNameMapped23
+	m	()V	method_23	net/minecraft/Class23/method_23	methodName23	methodNameMapped23
+	m	(I)Lnet/minecraft/Class23;	withArgs_23	net/minecraft/Class23/withArgs_23	withArgsName23	withArgsMapped23
+c	net/minecraft/class_24	net/minecraft/Class24	net/minecraft/named/Class24
+	f	field_24	net/minecraft/Class24/field_24	fieldName24	fieldNameMapped24
+	m	()V	method_24	net/minecraft/Class24/method_24	methodName24	methodNameMapped24
+	m	(I)Lnet/minecraft/Class24;	withArgs_24	net/minecraft/Class24/withArgs_24	withArgsName24	withArgsMapped24
+c	net/minecraft/class_25	net/minecraft/Class25	net/minecraft/named/Class25
+	f	field_25	net/minecraft/Class25/field_25	fieldName25	fieldNameMapped25
+	m	()V	method_25	net/minecraft/Class25/method_25	methodName25	methodNameMapped25
+	m	(I)Lnet/minecraft/Class25;	withArgs_25	net/minecraft/Class25/withArgs_25	withArgsName25	withArgsMapped25
+c	net/minecraft/class_26	net/minecraft/Class26	net/minecraft/named/Class26
+	f	field_26	net/minecraft/Class26/field_26	fieldName26	fieldNameMapped26
+	m	()V	method_26	net/minecraft/Class26/method_26	methodName26	methodNameMapped26
+	m	(I)Lnet/minecraft/Class26;	withArgs_26	net/minecraft/Class26/withArgs_26	withArgsName26	withArgsMapped26
+c	net/minecraft/class_27	net/minecraft/Class27	net/minecraft/named/Class27
+	f	field_27	net/minecraft/Class27/field_27	fieldName27	fieldNameMapped27
+	m	()V	method_27	net/minecraft/Class27/method_27	methodName27	methodNameMapped27
+	m	(I)Lnet/minecraft/Class27;	withArgs_27	net/minecraft/Class27/withArgs_27	withArgsName27	withArgsMapped27
+c	net/minecraft/class_28	net/minecraft/Class28	net/minecraft/named/Class28
+	f	field_28	net/minecraft/Class28/field_28	fieldName28	fieldNameMapped28
+	m	()V	method_28	net/minecraft/Class28/method_28	methodName28	methodNameMapped28
+	m	(I)Lnet/minecraft/Class28;	withArgs_28	net/minecraft/Class28/withArgs_28	withArgsName28	withArgsMapped28
+c	net/minecraft/class_29	net/minecraft/Class29	net/minecraft/named/Class29
+	f	field_29	net/minecraft/Class29/field_29	fieldName29	fieldNameMapped29
+	m	()V	method_29	net/minecraft/Class29/method_29	methodName29	methodNameMapped29
+	m	(I)Lnet/minecraft/Class29;	withArgs_29	net/minecraft/Class29/withArgs_29	withArgsName29	withArgsMapped29
+c	net/minecraft/class_30	net/minecraft/Class30	net/minecraft/named/Class30
+	f	field_30	net/minecraft/Class30/field_30	fieldName30	fieldNameMapped30
+	m	()V	method_30	net/minecraft/Class30/method_30	methodName30	methodNameMapped30
+	m	(I)Lnet/minecraft/Class30;	withArgs_30	net/minecraft/Class30/withArgs_30	withArgsName30	withArgsMapped30
+c	net/minecraft/class_31	net/minecraft/Class31	net/minecraft/named/Class31
+	f	field_31	net/minecraft/Class31/field_31	fieldName31	fieldNameMapped31
+	m	()V	method_31	net/minecraft/Class31/method_31	methodName31	methodNameMapped31
+	m	(I)Lnet/minecraft/Class31;	withArgs_31	net/minecraft/Class31/withArgs_31	withArgsName31	withArgsMapped31
+c	net/minecraft/class_32	net/minecraft/Class32	net/minecraft/named/Class32
+	f	field_32	net/minecraft/Class32/field_32	fieldName32	fieldNameMapped32
+	m	()V	method_32	net/minecraft/Class32/method_32	methodName32	methodNameMapped32
+	m	(I)Lnet/minecraft/Class32;	withArgs_32	net/minecraft/Class32/withArgs_32	withArgsName32	withArgsMapped32
+c	net/minecraft/class_33	net/minecraft/Class33	net/minecraft/named/Class33
+	f	field_33	net/minecraft/Class33/field_33	fieldName33	fieldNameMapped33
+	m	()V	method_33	net/minecraft/Class33/method_33	methodName33	methodNameMapped33
+	m	(I)Lnet/minecraft/Class33;	withArgs_33	net/minecraft/Class33/withArgs_33	withArgsName33	withArgsMapped33
+c	net/minecraft/class_34	net/minecraft/Class34	net/minecraft/named/Class34
+	f	field_34	net/minecraft/Class34/field_34	fieldName34	fieldNameMapped34
+	m	()V	method_34	net/minecraft/Class34/method_34	methodName34	methodNameMapped34
+	m	(I)Lnet/minecraft/Class34;	withArgs_34	net/minecraft/Class34/withArgs_34	withArgsName34	withArgsMapped34
+c	net/minecraft/class_35	net/minecraft/Class35	net/minecraft/named/Class35
+	f	field_35	net/minecraft/Class35/field_35	fieldName35	fieldNameMapped35
+	m	()V	method_35	net/minecraft/Class35/method_35	methodName35	methodNameMapped35
+	m	(I)Lnet/minecraft/Class35;	withArgs_35	net/minecraft/Class35/withArgs_35	withArgsName35	withArgsMapped35
+c	net/minecraft/class_36	net/minecraft/Class36	net/minecraft/named/Class36
+	f	field_36	net/minecraft/Class36/field_36	fieldName36	fieldNameMapped36
+	m	()V	method_36	net/minecraft/Class36/method_36	methodName36	methodNameMapped36
+	m	(I)Lnet/minecraft/Class36;	withArgs_36	net/minecraft/Class36/withArgs_36	withArgsName36	withArgsMapped36
+c	net/minecraft/class_37	net/minecraft/Class37	net/minecraft/named/Class37
+	f	field_37	net/minecraft/Class37/field_37	fieldName37	fieldNameMapped37
+	m	()V	method_37	net/minecraft/Class37/method_37	methodName37	methodNameMapped37
+	m	(I)Lnet/minecraft/Class37;	withArgs_37	net/minecraft/Class37/withArgs_37	withArgsName37	withArgsMapped37
+c	net/minecraft/class_38	net/minecraft/Class38	net/minecraft/named/Class38
+	f	field_38	net/minecraft/Class38/field_38	fieldName38	fieldNameMapped38
+	m	()V	method_38	net/minecraft/Class38/method_38	methodName38	methodNameMapped38
+	m	(I)Lnet/minecraft/Class38;	withArgs_38	net/minecraft/Class38/withArgs_38	withArgsName38	withArgsMapped38
+c	net/minecraft/class_39	net/minecraft/Class39	net/minecraft/named/Class39
+	f	field_39	net/minecraft/Class39/field_39	fieldName39	fieldNameMapped39
+	m	()V	method_39	net/minecraft/Class39/method_39	methodName39	methodNameMapped39
+	m	(I)Lnet/minecraft/Class39;	withArgs_39	net/minecraft/Class39/withArgs_39	withArgsName39	withArgsMapped39
+c	net/minecraft/class_40	net/minecraft/Class40	net/minecraft/named/Class40
+	f	field_40	net/minecraft/Class40/field_40	fieldName40	fieldNameMapped40
+	m	()V	method_40	net/minecraft/Class40/method_40	methodName40	methodNameMapped40
+	m	(I)Lnet/minecraft/Class40;	withArgs_40	net/minecraft/Class40/withArgs_40	withArgsName40	withArgsMapped40
+c	net/minecraft/class_41	net/minecraft/Class41	net/minecraft/named/Class41
+	f	field_41	net/minecraft/Class41/field_41	fieldName41	fieldNameMapped41
+	m	()V	method_41	net/minecraft/Class41/method_41	methodName41	methodNameMapped41
+	m	(I)Lnet/minecraft/Class41;	withArgs_41	net/minecraft/Class41/withArgs_41	withArgsName41	withArgsMapped41
+c	net/minecraft/class_42	net/minecraft/Class42	net/minecraft/named/Class42
+	f	field_42	net/minecraft/Class42/field_42	fieldName42	fieldNameMapped42
+	m	()V	method_42	net/minecraft/Class42/method_42	methodName42	methodNameMapped42
+	m	(I)Lnet/minecraft/Class42;	withArgs_42	net/minecraft/Class42/withArgs_42	withArgsName42	withArgsMapped42
+c	net/minecraft/class_43	net/minecraft/Class43	net/minecraft/named/Class43
+	f	field_43	net/minecraft/Class43/field_43	fieldName43	fieldNameMapped43
+	m	()V	method_43	net/minecraft/Class43/method_43	methodName43	methodNameMapped43
+	m	(I)Lnet/minecraft/Class43;	withArgs_43	net/minecraft/Class43/withArgs_43	withArgsName43	withArgsMapped43
+c	net/minecraft/class_44	net/minecraft/Class44	net/minecraft/named/Class44
+	f	field_44	net/minecraft/Class44/field_44	fieldName44	fieldNameMapped44
+	m	()V	method_44	net/minecraft/Class44/method_44	methodName44	methodNameMapped44
+	m	(I)Lnet/minecraft/Class44;	withArgs_44	net/minecraft/Class44/withArgs_44	withArgsName44	withArgsMapped44
+c	net/minecraft/class_45	net/minecraft/Class45	net/minecraft/named/Class45
+	f	field_45	net/minecraft/Class45/field_45	fieldName45	fieldNameMapped45
+	m	()V	method_45	net/minecraft/Class45/method_45	methodName45	methodNameMapped45
+	m	(I)Lnet/minecraft/Class45;	withArgs_45	net/minecraft/Class45/withArgs_45	withArgsName45	withArgsMapped45
+c	net/minecraft/class_46	net/minecraft/Class46	net/minecraft/named/Class46
+	f	field_46	net/minecraft/Class46/field_46	fieldName46	fieldNameMapped46
+	m	()V	method_46	net/minecraft/Class46/method_46	methodName46	methodNameMapped46
+	m	(I)Lnet/minecraft/Class46;	withArgs_46	net/minecraft/Class46/withArgs_46	withArgsName46	withArgsMapped46
+c	net/minecraft/class_47	net/minecraft/Class47	net/minecraft/named/Class47
+	f	field_47	net/minecraft/Class47/field_47	fieldName47	fieldNameMapped47
+	m	()V	method_47	net/minecraft/Class47/method_47	methodName47	methodNameMapped47
+	m	(I)Lnet/minecraft/Class47;	withArgs_47	net/minecraft/Class47/withArgs_47	withArgsName47	withArgsMapped47
+c	net/minecraft/class_48	net/minecraft/Class48	net/minecraft/named/Class48
+	f	field_48	net/minecraft/Class48/field_48	fieldName48	fieldNameMapped48
+	m	()V	method_48	net/minecraft/Class48/method_48	methodName48	methodNameMapped48
+	m	(I)Lnet/minecraft/Class48;	withArgs_48	net/minecraft/Class48/withArgs_48	withArgsName48	withArgsMapped48
+c	net/minecraft/class_49	net/minecraft/Class49	net/minecraft/named/Class49
+	f	field_49	net/minecraft/Class49/field_49	fieldName49	fieldNameMapped49
+	m	()V	method_49	net/minecraft/Class49/method_49	methodName49	methodNameMapped49
+	m	(I)Lnet/minecraft/Class49;	withArgs_49	net/minecraft/Class49/withArgs_49	withArgsName49	withArgsMapped49
+c	net/minecraft/class_50	net/minecraft/Class50	net/minecraft/named/Class50
+	f	field_50	net/minecraft/Class50/field_50	fieldName50	fieldNameMapped50
+	m	()V	method_50	net/minecraft/Class50/method_50	methodName50	methodNameMapped50
+	m	(I)Lnet/minecraft/Class50;	withArgs_50	net/minecraft/Class50/withArgs_50	withArgsName50	withArgsMapped50
+c	net/minecraft/class_51	net/minecraft/Class51	net/minecraft/named/Class51
+	f	field_51	net/minecraft/Class51/field_51	fieldName51	fieldNameMapped51
+	m	()V	method_51	net/minecraft/Class51/method_51	methodName51	methodNameMapped51
+	m	(I)Lnet/minecraft/Class51;	withArgs_51	net/minecraft/Class51/withArgs_51	withArgsName51	withArgsMapped51
+c	net/minecraft/class_52	net/minecraft/Class52	net/minecraft/named/Class52
+	f	field_52	net/minecraft/Class52/field_52	fieldName52	fieldNameMapped52
+	m	()V	method_52	net/minecraft/Class52/method_52	methodName52	methodNameMapped52
+	m	(I)Lnet/minecraft/Class52;	withArgs_52	net/minecraft/Class52/withArgs_52	withArgsName52	withArgsMapped52
+c	net/minecraft/class_53	net/minecraft/Class53	net/minecraft/named/Class53
+	f	field_53	net/minecraft/Class53/field_53	fieldName53	fieldNameMapped53
+	m	()V	method_53	net/minecraft/Class53/method_53	methodName53	methodNameMapped53
+	m	(I)Lnet/minecraft/Class53;	withArgs_53	net/minecraft/Class53/withArgs_53	withArgsName53	withArgsMapped53
+c	net/minecraft/class_54	net/minecraft/Class54	net/minecraft/named/Class54
+	f	field_54	net/minecraft/Class54/field_54	fieldName54	fieldNameMapped54
+	m	()V	method_54	net/minecraft/Class54/method_54	methodName54	methodNameMapped54
+	m	(I)Lnet/minecraft/Class54;	withArgs_54	net/minecraft/Class54/withArgs_54	withArgsName54	withArgsMapped54
+c	net/minecraft/class_55	net/minecraft/Class55	net/minecraft/named/Class55
+	f	field_55	net/minecraft/Class55/field_55	fieldName55	fieldNameMapped55
+	m	()V	method_55	net/minecraft/Class55/method_55	methodName55	methodNameMapped55
+	m	(I)Lnet/minecraft/Class55;	withArgs_55	net/minecraft/Class55/withArgs_55	withArgsName55	withArgsMapped55
+c	net/minecraft/class_56	net/minecraft/Class56	net/minecraft/named/Class56
+	f	field_56	net/minecraft/Class56/field_56	fieldName56	fieldNameMapped56
+	m	()V	method_56	net/minecraft/Class56/method_56	methodName56	methodNameMapped56
+	m	(I)Lnet/minecraft/Class56;	withArgs_56	net/minecraft/Class56/withArgs_56	withArgsName56	withArgsMapped56
+c	net/minecraft/class_57	net/minecraft/Class57	net/minecraft/named/Class57
+	f	field_57	net/minecraft/Class57/field_57	fieldName57	fieldNameMapped57
+	m	()V	method_57	net/minecraft/Class57/method_57	methodName57	methodNameMapped57
+	m	(I)Lnet/minecraft/Class57;	withArgs_57	net/minecraft/Class57/withArgs_57	withArgsName57	withArgsMapped57
+c	net/minecraft/class_58	net/minecraft/Class58	net/minecraft/named/Class58
+	f	field_58	net/minecraft/Class58/field_58	fieldName58	fieldNameMapped58
+	m	()V	method_58	net/minecraft/Class58/method_58	methodName58	methodNameMapped58
+	m	(I)Lnet/minecraft/Class58;	withArgs_58	net/minecraft/Class58/withArgs_58	withArgsName58	withArgsMapped58
+c	net/minecraft/class_59	net/minecraft/Class59	net/minecraft/named/Class59
+	f	field_59	net/minecraft/Class59/field_59	fieldName59	fieldNameMapped59
+	m	()V	method_59	net/minecraft/Class59/method_59	methodName59	methodNameMapped59
+	m	(I)Lnet/minecraft/Class59;	withArgs_59	net/minecraft/Class59/withArgs_59	withArgsName59	withArgsMapped59

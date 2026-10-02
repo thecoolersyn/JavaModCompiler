@@ -1,0 +1,60 @@
+{
+  "name": "jmc",
+  "version": "1.0.0",
+  "description": "JMC - Java Mod Compiler. Universal Minecraft mod/client compile and build orchestrator.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "bin": {
+    "jmc": "./dist/bin/jmc.mjs"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "ARCHITECTURE.md",
+    "CONTRIBUTING.md"
+  ],
+  "scripts": {
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true});fs.rmSync('.jmc-build',{recursive:true,force:true})\"",
+    "typecheck": "tsc --noEmit",
+    "bundle": "node scripts/bundle.mjs",
+    "build": "npm run clean && npm run typecheck && npm run bundle",
+    "test": "npm run test:lib && node --test --test-concurrency=4 \"tests/unit/*.test.mjs\"",
+    "test:integration": "npm run test:lib && node --test --test-concurrency=1 --test-timeout=1800000 \"tests/integration/*.test.mjs\"",
+    "test:all": "npm run test && npm run test:integration",
+    "lint:comments": "node scripts/comment-scan.mjs",
+    "verify": "npm run lint:comments && npm run typecheck && npm run test",
+    "install-local": "node scripts/install-local.mjs",
+    "package": "node scripts/package-dist.mjs",
+    "prepack": "npm run build",
+    "test:lib": "node scripts/build-test-lib.mjs",
+    "check:packaging": "npm run bundle && node scripts/check-packaging.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2"
+  },
+  "keywords": [
+    "minecraft",
+    "mod",
+    "fabric",
+    "forge",
+    "neoforge",
+    "quilt",
+    "mappings",
+    "remap",
+    "gradle",
+    "compiler",
+    "cli"
+  ],
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./dist/bin/jmc.mjs"
+    }
+  }
+}

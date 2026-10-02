@@ -1,0 +1,13 @@
+src/
+tests/
+fixtures/
+scripts/
+node_modules/
+types/
+.jmc-build/
+.jmc-test-tmp/
+.git/
+.github/
+.gitignore
+.npmignore
+tsconfig.json

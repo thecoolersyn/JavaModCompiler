@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "kotlindemo",
+  "version": "1.0.0",
+  "depends": {
+    "minecraft": "1.21.4"
+  }
+}

@@ -1,0 +1,14 @@
+node_modules/
+dist/
+types/
+.jmc-build/
+.jmc-test-tmp/
+.jmc-dist/
+dist-release/
+*.log
+*.jar
+.DS_Store
+.env
+.env.*
+*.pem
+*.key
