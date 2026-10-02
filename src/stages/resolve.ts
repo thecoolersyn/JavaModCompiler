@@ -29,10 +29,6 @@ export const resolveStage: Stage = {
     for (const notation of project.gradle?.dependencies.dependencies ?? []) {
       const resolved = resolveGradleNotation(notation, properties);
       if (resolved.startsWith('libs.') || resolved.includes('(')) continue;
-      if (configurationOf(resolved) === 'classpath') {
-        skipped.push(resolved);
-        continue;
-      }
       if (isToolchainManagedDependency(project, resolved, toolchainManaged)) {
         skipped.push(resolved);
         continue;
@@ -171,7 +167,38 @@ const LOOM_MAPPING_ARTIFACTS = new Set([
   'net.neoforged:neoforge',
 ]);
 const MINECRAFT_ARTIFACTS = new Set(['com.mojang:minecraft']);
-const LOADER_GROUPS = new Set(['net.minecraftforge', 'net.neoforged', 'net.neoforged.fancymodloader']);
+const FORGE_TOOLCHAIN_ARTIFACTS = new Set([
+  'net.minecraftforge:forge',
+  'net.minecraftforge:userdev',
+  'net.minecraftforge:userdev1.12.2',
+  'net.minecraftforge:installertools',
+  'net.minecraftforge:mcp_config',
+  'net.neoforged:neoforge',
+  'net.neoforged:neoform',
+  'net.neoforged.fancymodloader:loader',
+  'net.neoforged.fancymodloader:earlydisplay',
+  'net.neoforged.fancymodloader:fmlloader',
+  'net.neoforged.fancymodloader:lowcodelanguage',
+]);
+const NON_TOOLCHAIN_CONFIGURATIONS = new Set([
+  'annotationProcessor',
+  'testAnnotationProcessor',
+  'testImplementation',
+  'testCompileOnly',
+  'testRuntimeOnly',
+  'developmentOnly',
+  'javadoc',
+  'checkstyle',
+  'spotbugs',
+  'pmd',
+  'jacoco',
+]);
+
+function isLoaderOwnedArtifact(key: string, configuration: string): boolean {
+  if (MINECRAFT_ARTIFACTS.has(key)) return true;
+  if (FORGE_TOOLCHAIN_ARTIFACTS.has(key)) return true;
+  return LOOM_MAPPING_ARTIFACTS.has(key) && NON_TOOLCHAIN_CONFIGURATIONS.has(configuration) === false;
+}
 
 export function toolchainManagedDependencies(project: ProjectDetection): Set<string> {
   const pluginIds = [
@@ -192,10 +219,15 @@ export function toolchainManagedDependencies(project: ProjectDetection): Set<str
     const coordinate = parseGradleNotation(coordinatePartOf(notation), project.gradle?.properties ?? {});
     if (coordinate === undefined) continue;
     const key = `${coordinate.groupId}:${coordinate.artifactId}`;
-    const loaderOwned = LOADER_GROUPS.has(coordinate.groupId) || MINECRAFT_ARTIFACTS.has(key);
+    const toolchainConfiguration =
+      LOOM_CONFIGURATIONS.has(configuration) ||
+      configuration === 'minecraft' ||
+      configuration === 'mcp' ||
+      configuration.startsWith('compile');
+    if (NON_TOOLCHAIN_CONFIGURATIONS.has(configuration) && FORGE_TOOLCHAIN_ARTIFACTS.has(key) === false) continue;
     const toolchainManaged =
-      (loomManaged && (LOOM_CONFIGURATIONS.has(configuration) || loaderOwned)) ||
-      (forgeManaged && (configuration === 'minecraft' || configuration === 'mcp' || configuration.startsWith('compile') || loaderOwned));
+      (loomManaged && (toolchainConfiguration || isLoaderOwnedArtifact(key, configuration))) ||
+      (forgeManaged && (toolchainConfiguration || isLoaderOwnedArtifact(key, configuration)));
     if (toolchainManaged) managed.add(key);
     else if (loomManaged && LOOM_CONFIGURATIONS_OPTIONAL.has(configuration)) {
       optionalManaged.add(key);

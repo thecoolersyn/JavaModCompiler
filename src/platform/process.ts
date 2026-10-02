@@ -1,6 +1,5 @@
 import { spawn, spawnSync, type ChildProcess, type SpawnOptions } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { detectPlatform } from './os.js';
 
@@ -50,7 +49,10 @@ export class ProcessRunner {
       let child: ChildProcess;
       const invocation = resolveInvocation(platform.os, command, args);
       try {
-        child = spawn(invocation.command, invocation.args, spawnOptions);
+        child = spawn(invocation.command, invocation.args, {
+          ...spawnOptions,
+          windowsVerbatimArguments: invocation.windowsVerbatimArguments === true,
+        });
       } catch (error) {
         resolve({
           command,
@@ -98,7 +100,6 @@ export class ProcessRunner {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        invocation.cleanup?.();
         resolve({
           command,
           args,
@@ -146,9 +147,9 @@ export class ProcessRunner {
       timeout: timeoutMs,
       maxBuffer: maxBufferBytes,
       windowsHide: options.windowsHide ?? true,
+      windowsVerbatimArguments: invocation.windowsVerbatimArguments === true,
     });
     const error = result.error;
-    invocation.cleanup?.();
     return {
       command,
       args,
@@ -182,46 +183,36 @@ export class ProcessRunner {
   }
 }
 
-const BATCH_SAFE_ARGUMENT = /^[A-Za-z0-9_@+=:,./\\-]+$/;
-let batchCounter = 0;
+export interface BatchInvocation {
+  file: string;
+  arguments: string;
+}
 
-function quoteForBatch(value: string): string {
+const BATCH_SAFE_ARGUMENT = /^[A-Za-z0-9_@+=:,./\\-]+$/;
+
+export function quoteForBatch(value: string): string {
   const sanitized = value.replace(/[\r\n]/g, ' ');
+  if (sanitized.length === 0) return '""';
   if (BATCH_SAFE_ARGUMENT.test(sanitized)) return sanitized;
   return `"${sanitized.replace(/%/g, '%%').replace(/"/g, '""')}"`;
 }
 
-function writeBatchShim(command: string, args: string[]): { directory: string; file: string } {
-  batchCounter += 1;
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), `jmc-launch-${process.pid}-${batchCounter}-`));
-  const file = path.join(directory, 'launch.cmd');
-  const body = ['@echo off', 'setlocal', `"${command}" ${args.map(quoteForBatch).join(' ')}`, 'exit /b %ERRORLEVEL%', ''].join('\r\n');
-  fs.writeFileSync(file, body, 'utf8');
-  return { directory, file };
-}
-
-function removeBatchShim(directory: string): void {
-  try {
-    fs.rmSync(directory, { recursive: true, force: true });
-  } catch {
-    return;
-  }
+export function buildBatchCommandLine(command: string, args: string[]): string {
+  const tail = args.length === 0 ? '' : ` ${args.map(quoteForBatch).join(' ')}`;
+  return `/d /s /c ""${command}"${tail}"`;
 }
 
 function resolveInvocation(
   operatingSystem: string,
   command: string,
   args: string[],
-): { command: string; args: string[]; cleanup?: () => void } {
+): { command: string; args: string[]; windowsVerbatimArguments?: boolean; cleanup?: () => void } {
   if (operatingSystem !== 'win32') return { command, args };
   if (!/\.(bat|cmd)$/i.test(command)) return { command, args };
-  const shim = writeBatchShim(command, args);
   return {
     command: process.env.ComSpec ?? 'cmd.exe',
-    args: ['/d', '/s', '/c', shim.file],
-    cleanup: () => {
-      removeBatchShim(shim.directory);
-    },
+    args: [buildBatchCommandLine(command, args)],
+    windowsVerbatimArguments: true,
   };
 }
 

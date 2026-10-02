@@ -7,6 +7,7 @@ import type {
 } from '../core/types.js';
 import { formatCommand, type ProcessRunResult } from '../platform/process.js';
 import { defaultFileSystem } from '../platform/fs.js';
+import { fileUriForPath } from '../platform/uri.js';
 import { collectRepositories } from './resolve.js';
 import { gradleEnvironment, gradleJavaArgs } from '../loader/base-adapter.js';
 
@@ -75,8 +76,8 @@ export function writeRepositoryInitScript(context: BuildContext): string | undef
 }
 
 function uriForCache(context: BuildContext, repositoryId: string): string {
-  const directory = `${context.paths.cacheMaven}/${repositoryId}`;
-  return `file://${directory.replace(/\\/g, '/')}`;
+  const directory = path.join(context.paths.cacheMaven, repositoryId);
+  return fileUriForPath(directory);
 }
 
 function hostOf(url: string): string {

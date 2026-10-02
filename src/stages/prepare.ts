@@ -1,7 +1,7 @@
 import path from 'node:path';
 import type { BuildContext, Diagnostic, Stage, StageResult } from '../core/types.js';
 import { defaultFileSystem } from '../platform/fs.js';
-import { GradleDistributionVerificationError, javaRequiredForGradleVersion } from '../gradle/manager.js';
+import { GradleDistributionVerificationError, javaFloorForGradleVersion, javaRequiredForGradleVersion } from '../gradle/manager.js';
 import { javaBaselineForVersion } from '../minecraft/version.js';
 import { extractArchive } from '../net/archive.js';
 import { detectFormatFromExtension } from '../mappings/providers.js';
@@ -17,13 +17,33 @@ export const prepareStage: Stage = {
     const diagnostics: NonNullable<StageResult['diagnostics']> = [];
     const warnings: string[] = [];
 
-    const ruleJava = project.gradle === undefined ? undefined : context.services.gradle.selectVersion(project.gradle).javaMajor;
-    const requestedJava = context.options.javaOverride ?? ruleJava ?? project.javaTarget ?? javaBaselineForVersion(context.toolchain.minecraftVersion ?? '1.20.1');
-    const javaRequirement: { minMajor: number; maxMajor?: number } = { minMajor: requestedJava };
-    if (context.options.javaOverride === undefined) {
-      const cap = javaCapForProject(project, ruleJava);
-      if (cap !== undefined) javaRequirement.maxMajor = cap;
+    const selection = project.gradle === undefined ? undefined : context.services.gradle.selectVersion(project.gradle);
+    if (selection?.conflict !== undefined) {
+      diagnostics.push({
+        id: 'gradle-rule-conflict',
+        severity: 'error',
+        title: 'Gradle Version Rules',
+        summary: 'No Gradle version satisfies every plugin the project applies',
+        stage: 'PREPARE',
+        detected: selection.conflict.plugins,
+        cause: selection.conflict.detail,
+        suggestions: [
+          'Pin a Gradle wrapper version: run gradle wrapper --gradle-version <version> and commit gradle/wrapper/gradle-wrapper.properties.',
+          'Align the conflicting plugins: they target different Gradle major versions.',
+        ],
+        evidence: [selection.reason],
+        rawMessages: [selection.reason],
+      });
+      return { artifacts, diagnostics, warnings };
     }
+
+    const javaRequirement = resolveJavaRequirement({
+      ruleJava: selection?.javaMajor,
+      javaTarget: project.javaTarget,
+      gradleVersion: selection?.version,
+      minecraftVersion: context.toolchain.minecraftVersion,
+      javaOverride: context.options.javaOverride,
+    });
     context.toolchain.javaMajor = javaRequirement.minMajor;
     let installation;
     try {
@@ -52,29 +72,10 @@ export const prepareStage: Stage = {
     context.toolchain.javaVendor = installation.vendor;
     context.toolchain.notes.push(`Java ${installation.versionText} (${installation.origin})`);
 
-    if (project.gradle !== undefined) {
-      const selection = context.services.gradle.selectVersion(project.gradle);
+    if (project.gradle !== undefined && selection !== undefined) {
       const gradleVersion = selection.version;
-      if (selection.conflict !== undefined) {
-        diagnostics.push({
-          id: 'gradle-rule-conflict',
-          severity: 'error',
-          title: 'Gradle Version Rules',
-          summary: 'No Gradle version satisfies every plugin the project applies',
-          stage: 'PREPARE',
-          detected: selection.conflict.plugins,
-          cause: selection.conflict.detail,
-          suggestions: [
-            `Pin a Gradle wrapper version: run gradle wrapper --gradle-version <version> and commit ${'gradle/wrapper/gradle-wrapper.properties'}.`,
-            'Align the conflicting plugins: they target different Gradle major versions.',
-          ],
-          evidence: [selection.reason],
-          rawMessages: [selection.reason],
-        });
-        return { artifacts, diagnostics, warnings };
-      }
       context.toolchain.notes.push(`Gradle ${gradleVersion} selected because ${selection.reason}`);
-      const requiredJava = selection.javaMajor ?? javaRequiredForGradleVersion(gradleVersion);
+      const requiredJava = javaRequiredForGradleVersion(gradleVersion);
       if (requiredJava > 0 && installation.version < requiredJava) {
         const upgrade = await context.services.java.resolve({ minMajor: requiredJava });
         context.toolchain.javaHome = upgrade.javaHome;
@@ -196,10 +197,25 @@ export const prepareStage: Stage = {
   },
 };
 
-function javaCapForProject(project: NonNullable<BuildContext['project']>, ruleJava: number | undefined): number | undefined {
-  if (ruleJava !== undefined && ruleJava <= 8) return ruleJava;
-  if (project.javaTarget !== undefined && ruleJava !== undefined && project.javaTarget < ruleJava) return project.javaTarget;
-  return undefined;
+export interface JavaRequirementInput {
+  ruleJava?: number;
+  javaTarget?: number;
+  gradleVersion?: string;
+  minecraftVersion?: string;
+  javaOverride?: number;
+}
+
+export function resolveJavaRequirement(input: JavaRequirementInput): { minMajor: number; maxMajor?: number } {
+  if (input.javaOverride !== undefined) return { minMajor: input.javaOverride };
+  const floors = [
+    input.ruleJava,
+    input.javaTarget,
+    input.gradleVersion === undefined ? undefined : javaFloorForGradleVersion(input.gradleVersion),
+    javaBaselineForVersion(input.minecraftVersion ?? '1.20.1'),
+  ].filter((entry): entry is number => entry !== undefined && entry > 1);
+  const minMajor = floors.length === 0 ? 8 : Math.max(...floors);
+  const cap = input.ruleJava !== undefined && input.ruleJava <= 8 ? input.ruleJava : undefined;
+  return cap !== undefined && cap >= minMajor ? { minMajor, maxMajor: cap } : { minMajor };
 }
 
 function fatal(id: string, summary: string): NonNullable<StageResult['diagnostics']> {

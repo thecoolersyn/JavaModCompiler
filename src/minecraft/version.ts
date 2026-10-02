@@ -103,12 +103,11 @@ export function javaBaselineForVersion(version: string): number {
   if (identity.major === undefined) return 8;
   if (identity.major !== 1) return 21;
   const minor = identity.minor ?? 0;
-  if (minor < 16) return 8;
-  if (minor < 17) return 16;
-  if (minor < 18) return 17;
-  if (minor < 20 || minor === 20) return 17;
-  if (minor === 20) return 21;
-  if (minor === 21) return 21;
+  const patch = identity.patch ?? 0;
+  if (minor < 17) return 8;
+  if (minor === 17) return 16;
+  if (minor < 20) return 17;
+  if (minor === 20) return patch >= 5 ? 21 : 17;
   return 21;
 }
 

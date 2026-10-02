@@ -33,9 +33,13 @@ export function lex(source: string): Token[] {
       index += 2;
       continue;
     }
-    if (char === '#' && index === 0) {
-      while (index < length && source[index] !== '\n') index += 1;
-      continue;
+    if (char === '#' && source[index + 1] !== '!') {
+      const afterHash = source[index + 1];
+      const atLineStart = index === 0 || /[ \t]/.test(source[index - 1] ?? '');
+      if (atLineStart || afterHash === ' ') {
+        while (index < length && source[index] !== '\n') index += 1;
+        continue;
+      }
     }
     if (char === '"' || char === "'") {
       const quote = char;

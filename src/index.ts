@@ -28,6 +28,7 @@ import type { SideValidationInput, SideValidationResult } from './validate/sides
 import type { ScriptDescriptor, ApprovalService } from './security/approval.js';
 import type { GradleSelection } from './gradle/compatibility.js';
 import type { GradleManager } from './gradle/manager.js';
+import type { ProcessRunner } from './platform/process.js';
 import type { GradleProjectModel } from './project/gradle-model.js';
 
 export type {
@@ -87,6 +88,18 @@ export interface JmcApi {
     metadataName: string,
   ): Promise<DeclaredMixinConfigReport>;
   checkMetadata(jarPath: string): Promise<MetadataCheckResult>;
+  classifyArtifact(candidate: string): Promise<{ development: boolean; documentation: boolean; publishable: boolean }>;
+  createProcessRunner(timeoutMs?: number): Promise<ProcessRunner>;
+  buildBatchCommandLine(command: string, args: string[]): Promise<string>;
+  fileUriForPath(target: string): Promise<string>;
+  lexGradle(source: string): Promise<Array<{ type: string; value: string }>>;
+  toolchainManagedDependenciesFor(projectRoot: string): Promise<string[]>;
+  isValidFileUri(value: string): Promise<boolean>;
+  assertRemappedArtifact(
+    chosen: string,
+    all: string[],
+    loaderPlan?: { remapTask?: string },
+  ): Promise<{ id: string; summary: string; cause?: string } | undefined>;
   collectBuildScripts(projectRoot: string): Promise<ScriptDescriptor[]>;
   digestOfScripts(scripts: ScriptDescriptor[]): Promise<string>;
   createApprovalService(options: {
@@ -102,6 +115,13 @@ export interface JmcApi {
   javaRequiredForGradleVersion(gradleVersion: string): Promise<number>;
   createGradleManager(options: { home: string; offline: boolean; quiet?: boolean }): Promise<GradleManager>;
   javaRequiredForProject(model: GradleProjectModel | undefined): Promise<number>;
+  resolveJavaRequirement(input: {
+    ruleJava?: number;
+    javaTarget?: number;
+    gradleVersion?: string;
+    minecraftVersion?: string;
+    javaOverride?: number;
+  }): Promise<{ minMajor: number; maxMajor?: number }>;
 }
 
 export function createApi(): JmcApi {
@@ -254,6 +274,10 @@ export function createApi(): JmcApi {
       const { javaRequiredForProjectForModel } = await import('./gradle/compatibility.js');
       return javaRequiredForProjectForModel(model);
     },
+    resolveJavaRequirement: async (input) => {
+      const { resolveJavaRequirement } = await import('./stages/prepare.js');
+      return resolveJavaRequirement(input);
+    },
     validateDeclaredMixinConfigs: async (jarPath, metadata, metadataName) => {
       const { validateDeclaredMixinConfigs } = await import('./validate/mixin.js');
       return validateDeclaredMixinConfigs(jarPath, metadata, metadataName);
@@ -261,6 +285,46 @@ export function createApi(): JmcApi {
     checkMetadata: async (jarPath) => {
       const { checkMetadata } = await import('./validate/bytecode.js');
       return checkMetadata(jarPath);
+    },
+    classifyArtifact: async (candidate) => {
+      const { isDevelopmentArtifact, isDocumentationArtifact, isPublishableCandidate } = await import('./stages/package.js');
+      return {
+        development: isDevelopmentArtifact(candidate),
+        documentation: isDocumentationArtifact(candidate),
+        publishable: isPublishableCandidate(candidate),
+      };
+    },
+    createProcessRunner: async (timeoutMs) => {
+      const { ProcessRunner } = await import('./platform/process.js');
+      return new ProcessRunner(timeoutMs);
+    },
+    buildBatchCommandLine: async (command, args) => {
+      const { buildBatchCommandLine } = await import('./platform/process.js');
+      return buildBatchCommandLine(command, args);
+    },
+    fileUriForPath: async (target: string) => {
+      const { fileUriForPath } = await import('./platform/uri.js');
+      return fileUriForPath(target);
+    },
+    isValidFileUri: async (value: string) => {
+      const { isValidFileUri } = await import('./platform/uri.js');
+      return isValidFileUri(value);
+    },
+    lexGradle: async (source: string) => {
+      const { lex } = await import('./project/gradle-lexer.js');
+      return lex(source).map((token) => ({ type: token.type, value: token.value }));
+    },
+    toolchainManagedDependenciesFor: async (projectRoot: string) => {
+      const { detectProject } = await import('./project/detection.js');
+      const { toolchainManagedDependencies } = await import('./stages/resolve.js');
+      const project = await detectProject(projectRoot);
+      return [...toolchainManagedDependencies(project)];
+    },
+    assertRemappedArtifact: async (chosen, all, loaderPlan) => {
+      const { assertRemappedArtifact } = await import('./stages/package.js');
+      const diagnostic = assertRemappedArtifact(chosen, all, { loaderPlan } as unknown as BuildContext);
+      if (diagnostic === undefined) return undefined;
+      return { id: diagnostic.id, summary: diagnostic.summary, cause: diagnostic.cause };
     },
   };
 }

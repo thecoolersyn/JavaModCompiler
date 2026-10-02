@@ -216,17 +216,19 @@ test('a build that produces only a development jar fails with a remapping diagno
       "version = '1.0.0'",
       '',
       "tasks.named('jar') {",
-      "    archiveFileName = 'devonly-dev.jar'",
+      "    archiveBaseName = 'mymod'",
+      "    archiveVersion = '1.0.0'",
+      "    archiveClassifier = 'dev'",
       '}',
       "tasks.register('remapJar') { dependsOn 'jar' }",
       '',
     ].join('\n'),
   );
-  write(project, 'settings.gradle', "rootProject.name = 'devonly'\n");
+  write(project, 'settings.gradle', "rootProject.name = 'mymod'\n");
   write(project, 'gradle.properties', 'minecraft_version=1.20.1\n');
   write(project, 'src/main/java/com/example/DevOnly.java', 'package com.example;\npublic class DevOnly {}\n');
 
-  const result = await runJson([project, '--java', '21', '--out', 'devonly.jar', '--yes', '--json']);
+  const result = await runJson([project, '--java', '21', '--out', 'mymod.jar', '--yes', '--json']);
   const { diagnostic } = assertFailedWith(result, {
     stage: 'PACKAGE',
     diagnosticId: 'only-dev-artifact-produced',
@@ -236,13 +238,13 @@ test('a build that produces only a development jar fails with a remapping diagno
   assert.ok(diagnostic.suggestions.some((entry) => /remap/i.test(entry)));
 });
 
-test('a remapping build that ships an unmapped artifact fails validation', { timeout: 1_800_000 }, async (t) => {
+test('a real Loom-style build publishes the unsuffixed production jar', { timeout: 1_800_000 }, async (t) => {
   const reachable = await networkAvailable('https://services.gradle.org/distributions/gradle-8.10.2-bin.zip.sha256');
   if (reachable !== true) {
     t.skip(`the Gradle distribution host is unreachable, so the delegated build cannot be run: ${reachable}`);
     return;
   }
-  const project = tempDir('unmapped-selected');
+  const project = tempDir('loom-style');
   write(
     project,
     'build.gradle',
@@ -252,68 +254,35 @@ test('a remapping build that ships an unmapped artifact fails validation', { tim
       "version = '1.0.0'",
       '',
       "tasks.named('jar') {",
-      "    archiveFileName = 'unmapped-dev.jar'",
+      "    archiveBaseName = 'mymod'",
+      "    archiveVersion = '1.0.0'",
+      "    archiveClassifier = 'dev'",
       '}',
       "tasks.register('remapJar', Jar) {",
-      "    archiveFileName = 'unmapped-plain.jar'",
+      "    archiveBaseName = 'mymod'",
+      "    archiveVersion = '1.0.0'",
       '    from sourceSets.main.output',
       "    dependsOn 'jar'",
       '}',
       '',
     ].join('\n'),
   );
-  write(project, 'settings.gradle', "rootProject.name = 'unmapped'\n");
+  write(project, 'settings.gradle', "rootProject.name = 'mymod'\n");
   write(project, 'gradle.properties', 'minecraft_version=1.20.1\n');
-  write(project, 'src/main/java/com/example/Unmapped.java', 'package com.example;\npublic class Unmapped {}\n');
-
-
-  const result = await runJson([project, '--java', '21', '--out', 'unmapped.jar', '--yes', '--json']);
-  const { diagnostic } = assertFailedWith(result, {
-    stage: 'PACKAGE',
-    diagnosticId: 'remapped-artifact-expected',
-    exitCode: EXIT_GENERAL_FAILURE,
-  });
-  assert.match(diagnostic.cause, /remap task \(remapJar\)/);
-  assert.ok(diagnostic.evidence.some((entry) => entry.includes('unmapped-dev.jar')));
-});
-
-test('a remapping build that ships a remapped artifact is accepted', { timeout: 1_800_000 }, async (t) => {
-  const reachable = await networkAvailable('https://services.gradle.org/distributions/gradle-8.10.2-bin.zip.sha256');
-  if (reachable !== true) {
-    t.skip(`the Gradle distribution host is unreachable, so the delegated build cannot be run: ${reachable}`);
-    return;
-  }
-  const project = tempDir('remapped-selected');
+  write(project, 'src/main/java/com/example/LoomStyle.java', 'package com.example;\npublic class LoomStyle {}\n');
   write(
     project,
-    'build.gradle',
-    [
-      "plugins { id 'java' }",
-      '',
-      "version = '1.0.0'",
-      '',
-      "tasks.named('jar') {",
-      "    archiveFileName = 'remapped-dev.jar'",
-      '}',
-      "tasks.register('remapJar', Jar) {",
-      "    archiveFileName = 'remapped-remapped.jar'",
-      '    from sourceSets.main.output',
-      "    dependsOn 'jar'",
-      '}',
-      '',
-    ].join('\n'),
+    'src/main/resources/fabric.mod.json',
+    JSON.stringify({ schemaVersion: 1, id: 'mymod', version: '1.0.0', environment: '*', depends: { minecraft: '1.20.1' } }),
   );
-  write(project, 'settings.gradle', "rootProject.name = 'remapped'\n");
-  write(project, 'gradle.properties', 'minecraft_version=1.20.1\n');
-  write(project, 'src/main/java/com/example/Remapped.java', 'package com.example;\npublic class Remapped {}\n');
-
   write(project, 'src/main/resources/META-INF/MANIFEST.MF', 'Manifest-Version: 1.0\n');
 
-  const result = await runJson([project, '--java', '21', '--out', 'remapped.jar', '--yes', '--json']);
+  const output = path.join(tempDir('out-loom-style'), 'mymod.jar');
+  const result = await runJson([project, '--java', '21', '--out', output, '--yes', '--json']);
   const summary = JSON.parse(result.stdout);
   assert.equal(summary.status, 'pass', JSON.stringify(summary.diagnostics.slice(0, 2)));
   assert.equal(result.code, EXIT_SUCCESS);
-  assert.equal(fs.existsSync(path.join(project, 'remapped.jar')), true);
+  assert.equal(fs.existsSync(output), true, 'the unsuffixed production jar must be published');
 });
 
 async function networkAvailable(url) {

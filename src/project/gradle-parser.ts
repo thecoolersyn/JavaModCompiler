@@ -296,15 +296,14 @@ function collectPlugins(tokens: Token[], plugins: GradlePluginDescriptor[], kotl
   const declaration = kotlin ? 'plugins-block-kts' : 'plugins-block';
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index] as Token;
-    if (token.type !== 'word') {
-      continue;
-    }
-    if (token.value === 'alias' && tokens[index + 1]?.value === '(') {
+    if (token.type === 'word' && token.value === 'alias' && tokens[index + 1]?.value === '(') {
       const reference = readDottedName(new TokenStream(tokens, index + 2));
       if (reference !== undefined) plugins.push({ id: '', versionRef: reference, applyDeclaration: 'version-catalog-alias' });
+      const aliasEnd = new TokenStream(tokens, index + 2).skipBalanced('(', ')');
+      index = index + 2 + aliasEnd.length;
       continue;
     }
-    if (token.value === 'apply' && tokens[index + 1]?.value === 'plugin') {
+    if (token.type === 'word' && token.value === 'apply' && tokens[index + 1]?.value === 'plugin') {
       let cursor = index + 2;
       if (tokens[cursor]?.value === ':') cursor += 1;
       const literal = tokens[cursor];
@@ -314,14 +313,13 @@ function collectPlugins(tokens: Token[], plugins: GradlePluginDescriptor[], kotl
       }
       continue;
     }
-    if (token.value === 'id' || token.value === 'java' || token.value === 'apply') {
+    if (token.type === 'word' && (token.value === 'id' || token.value === 'java')) {
       const open = tokens[index + 1];
       if (open === undefined) continue;
       let id: string | undefined;
       let next = index + 2;
       if (open.type === 'string') {
         id = open.value;
-        next = index + 2;
       } else if (open.value === '(') {
         const stream = new TokenStream(tokens, index + 1);
         const body = stream.skipBalanced('(', ')');
@@ -331,17 +329,12 @@ function collectPlugins(tokens: Token[], plugins: GradlePluginDescriptor[], kotl
       } else {
         continue;
       }
-      if (token.value === 'apply') {
-        plugins.push({ id, applyDeclaration: 'apply-declaration' });
-        index = next - 1;
-        continue;
-      }
       const versionToken = tokens[next]?.value === 'version' ? tokens[next + 1] : undefined;
       plugins.push({ id, ...pluginVersionFields(versionToken), applyDeclaration: declaration });
       index = versionToken === undefined ? next - 1 : next + 1;
       continue;
     }
-    if (isVersionLike(token.value) === false) {
+    if (token.type === 'string' && isVersionLike(token.value) === false) {
       const versionToken = tokens[index + 1]?.value === 'version' ? tokens[index + 2] : undefined;
       plugins.push({ id: token.value, ...pluginVersionFields(versionToken), applyDeclaration: declaration });
       index = versionToken === undefined ? index : index + 2;
@@ -581,31 +574,28 @@ function extractNotations(tokens: Token[]): string[] {
     const token = stream.peek();
     if (token === undefined) break;
 
-    if (token.type === 'word' && (token.value === 'files' || token.value === 'fileTree')) {
+    if (token.type === 'word' && (token.value === 'files' || token.value === 'fileTree' || token.value === 'project')) {
+      stream.next();
       const body = stream.skipBalanced('(', ')');
+      if (token.value === 'project') {
+        notations.push(`project(${body.map((entry) => entry.value).join('')})`);
+        continue;
+      }
       const literals = body.filter((entry) => entry.type === 'string').map((entry) => entry.value);
       notations.push(`${token.value}(${literals.join(', ')})`);
       continue;
     }
-    if (token.type === 'word' && token.value === 'project') {
-      const body = stream.skipBalanced('(', ')');
-      notations.push(`project(${body.map((entry) => entry.value).join('')})`);
-      continue;
-    }
-    if (token.type === 'string') {
-      const start = indexOfToken(tokens, token);
-      const group = nextString(tokens, start + 1);
-      const name = nextString(tokens, group.index + 1);
-      const version = nextString(tokens, name.index + 1);
-      if (group.value !== undefined && name.value !== undefined) {
-        notations.push(`${group.value}:${name.value}:${version.value ?? '+'}`);
-        continue;
-      }
-      notations.push(token.value);
-      stream.next();
-      continue;
-    }
     stream.next();
+    if (token.type !== 'string') continue;
+    const start = indexOfToken(tokens, token);
+    const group = nextString(tokens, start + 1);
+    const name = nextString(tokens, group.index + 1);
+    const version = nextString(tokens, name.index + 1);
+    if (group.value !== undefined && name.value !== undefined) {
+      notations.push(`${group.value}:${name.value}:${version.value ?? '+'}`);
+      continue;
+    }
+    notations.push(token.value);
   }
   return notations;
 }

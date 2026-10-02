@@ -3,7 +3,7 @@ import type { Architecture, OperatingSystem } from '../platform/os.js';
 import type { JmcPaths } from '../platform/paths.js';
 import { defaultFileSystem } from '../platform/fs.js';
 import { detectPlatform } from '../platform/os.js';
-import { DownloadError, downloadFile, fetchText, sha256File } from '../net/download.js';
+import { downloadFile, fetchText, sha256File } from '../net/download.js';
 import { selectGradleVersion } from './compatibility.js';
 import { extractArchive } from '../net/archive.js';
 import type { GradleProjectModel } from '../project/gradle-model.js';
@@ -66,6 +66,14 @@ const GRADLE_JAVA_TABLE: Array<{ maxGradleMajor: number; java: number }> = [
   { maxGradleMajor: 9, java: 21 },
 ];
 
+const GRADLE_JAVA_FLOOR: Array<{ maxGradleMajor: number; java: number }> = [
+  { maxGradleMajor: 4, java: 8 },
+  { maxGradleMajor: 6, java: 8 },
+  { maxGradleMajor: 7, java: 8 },
+  { maxGradleMajor: 8, java: 8 },
+  { maxGradleMajor: 9, java: 17 },
+];
+
 export function currentGradleVersion(): string {
   return selectGradleVersion(undefined).version;
 }
@@ -77,6 +85,15 @@ export function javaRequiredForGradleVersion(gradleVersion: string): number {
     if (normalized <= entry.maxGradleMajor) return entry.java;
   }
   return 21;
+}
+
+export function javaFloorForGradleVersion(gradleVersion: string): number {
+  const major = Number.parseInt(gradleVersion.split('.')[0] ?? '0', 10);
+  const normalized = Number.isNaN(major) ? 0 : major;
+  for (const entry of GRADLE_JAVA_FLOOR) {
+    if (normalized <= entry.maxGradleMajor) return entry.java;
+  }
+  return 17;
 }
 
 export function resolveGradleServiceUrl(serviceRoot: string): string | null {
@@ -191,50 +208,94 @@ export class GradleManager {
     const markerPath = `${archivePath}.sha256`;
     const wrapper = options.projectRoot === undefined ? undefined : this.wrapperPropertiesContent(options.projectRoot);
 
+    const cached = this.verifiedInstall(version, archivePath, markerPath, undefined);
+    if (cached !== undefined) return cached;
+
     if (this.options.offline) {
-      const cached = this.verifyCachedOnly(version, archivePath, markerPath);
-      if (cached !== undefined) return cached;
+      const offlineReinstall: GradleInstall | undefined = await this.reinstallFromVerifiedArchive(version, archivePath, markerPath);
+      if (offlineReinstall !== undefined) return offlineReinstall;
       throw new Error(`Gradle ${version} is not present in the JMC cache and offline mode prevents downloading it`);
     }
 
-    const expected = await this.expectedChecksum(archiveUrl, markerPath, options.projectRoot, wrapper, version);
-    const existing = this.verifiedInstall(version, archivePath, markerPath, expected);
-    if (existing !== undefined) return existing;
+    const expected = await this.expectedChecksum(archiveUrl, options.projectRoot, wrapper, version);
+    const afterVerification = this.verifiedInstall(version, archivePath, markerPath, expected);
+    if (afterVerification !== undefined) return afterVerification;
+    const verifiedReinstall: GradleInstall | undefined = await this.reinstallFromVerifiedArchive(version, archivePath, markerPath);
+    if (verifiedReinstall !== undefined) return verifiedReinstall;
+
     this.options.logger.download(`Downloading Gradle ${version}`, 'Gradle');
+    const temporary = `${archivePath}.part`;
+    this.fs.remove(temporary);
     try {
-      await downloadFile(archiveUrl, archivePath, {
+      await downloadFile(archiveUrl, temporary, {
         logger: this.options.logger,
         offline: this.options.offline,
-        expectedSha256: expected,
         stage: 'Gradle',
         timeoutMs: 30 * 60 * 1000,
       });
     } catch (error) {
-      if (error instanceof DownloadError && error.kind === 'checksum') {
-        this.fs.remove(archivePath);
-        throw new GradleDistributionVerificationError(
-          `${error.message}. The downloaded archive was discarded and was not installed.`,
-          archiveUrl,
-          expected,
-          undefined,
-        );
-      }
+      this.fs.remove(temporary);
       throw error;
     }
-    const actual = sha256File(archivePath);
-    this.assertChecksum(archiveUrl, expected, actual, archivePath);
+    const actual = sha256File(temporary);
+    if (actual !== expected) {
+      this.fs.remove(temporary);
+      throw new GradleDistributionVerificationError(
+        `Checksum mismatch for ${archiveUrl}: expected ${expected}, received ${actual}. The downloaded archive was discarded and was not installed.`,
+        archiveUrl,
+        expected,
+        actual,
+      );
+    }
+    this.fs.remove(archivePath);
+    this.fs.rename(temporary, archivePath);
     this.fs.writeText(markerPath, `${actual}\n`);
     const extractRoot = path.join(this.options.paths.cacheGradle, `gradle-${version}`);
     this.options.logger.info(`Extracting Gradle ${version}`, 'Gradle');
     this.fs.remove(extractRoot);
     await extractArchive(archivePath, extractRoot);
+    this.writeInstallState(version, actual);
     const install = this.managedInstall(version);
     if (install !== undefined) return install;
     throw new Error(`Gradle ${version} distribution extracted but no gradle launcher was found under ${extractRoot}`);
   }
 
-  private verifyCachedOnly(version: string, archivePath: string, markerPath: string): GradleInstall | undefined {
-    return this.cacheIsVerified(version, archivePath, markerPath, undefined) ? this.managedInstall(version) : undefined;
+  private async reinstallFromVerifiedArchive(version: string, archivePath: string, markerPath: string): Promise<GradleInstall | undefined> {
+    const marker = this.readMarker(markerPath);
+    if (marker === undefined || this.fs.isFile(archivePath) === false) return undefined;
+    if (sha256File(archivePath) !== marker.checksum) return undefined;
+    if (this.managedInstall(version) !== undefined && this.installedTreeMatches(version, marker.checksum)) {
+      return this.managedInstall(version);
+    }
+    this.options.logger.info(`Reinstalling Gradle ${version} from its verified archive`, 'Gradle');
+    const extractRoot = path.join(this.options.paths.cacheGradle, `gradle-${version}`);
+    this.fs.remove(extractRoot);
+    await extractArchive(archivePath, extractRoot);
+    this.writeInstallState(version, marker.checksum);
+    return this.managedInstall(version);
+  }
+
+  private installStatePath(version: string): string {
+    return path.join(this.options.paths.cacheGradle, `gradle-${version}.install.json`);
+  }
+
+  private writeInstallState(version: string, archiveChecksum: string): void {
+    this.fs.writeText(
+      this.installStatePath(version),
+      `${JSON.stringify({ version, archiveChecksum, recordedAt: Date.now(), algorithm: 'sha256' }, null, 2)}\n`,
+    );
+  }
+
+  private installState(version: string): { version: string; archiveChecksum: string; algorithm: string } | undefined {
+    const target = this.installStatePath(version);
+    if (this.fs.isFile(target) === false) return undefined;
+    try {
+      const parsed = JSON.parse(this.fs.readText(target)) as { version: string; archiveChecksum: string; algorithm: string };
+      if (typeof parsed.archiveChecksum !== 'string' || /^[0-9a-f]{64}$/.test(parsed.archiveChecksum) === false) return undefined;
+      return parsed;
+    } catch {
+      return undefined;
+    }
   }
 
   private verifiedInstall(version: string, archivePath: string, markerPath: string, expected: string | undefined): GradleInstall | undefined {
@@ -243,35 +304,65 @@ export class GradleManager {
   }
 
   private cacheIsVerified(version: string, archivePath: string, markerPath: string, expected: string | undefined): boolean {
-    if (this.fs.isFile(archivePath) === false || this.fs.isFile(markerPath) === false) {
-      if (this.fs.isFile(archivePath) || this.fs.isFile(markerPath)) this.discardCachedDistribution(version, archivePath, markerPath);
+    const marker = this.readMarker(markerPath);
+    if (marker === undefined) {
+      if (this.fs.isFile(archivePath)) {
+        this.options.logger.info(
+          `Gradle ${version} is cached without verification metadata; it will be re-verified before the build reuses it`,
+          'Gradle',
+        );
+      }
       return false;
     }
-    const recorded = this.fs.readText(markerPath).trim();
-    if (recorded.length !== 64 || /^[0-9a-f]{64}$/.test(recorded) === false) {
-      this.discardCachedDistribution(version, archivePath, markerPath);
+    if (this.fs.isFile(archivePath) === false) {
+      this.fs.remove(markerPath);
       return false;
     }
     const actual = sha256File(archivePath);
-    const matchesMarker = actual === recorded;
-    const matchesPublished = expected === undefined || actual === expected.toLowerCase();
-    if (matchesMarker === false || matchesPublished === false) {
-      this.discardCachedDistribution(version, archivePath, markerPath);
+    if (actual === marker.checksum && (expected === undefined || actual === expected.toLowerCase())) {
+      if (this.installedTreeMatches(version, marker.checksum) === false) return false;
+      return this.managedInstall(version) !== undefined;
+    }
+    this.discardCachedDistribution(version, archivePath, markerPath);
+    return false;
+  }
+
+  private installedTreeMatches(version: string, archiveChecksum: string): boolean {
+    const state = this.installState(version);
+    if (state === undefined) {
+      this.options.logger.info(
+        `Gradle ${version} was extracted by an earlier JMC version and carries no installation record; it will be reinstalled so the executed distribution matches its verified archive`,
+        'Gradle',
+      );
       return false;
     }
-    return this.managedInstall(version) !== undefined;
+    if (state.archiveChecksum !== archiveChecksum) {
+      this.options.logger.warn(
+        `The installed Gradle ${version} does not match its verified archive; the installation will be recreated`,
+        'Gradle',
+      );
+      return false;
+    }
+    return true;
+  }
+
+  private readMarker(markerPath: string): { checksum: string } | undefined {
+    if (this.fs.isFile(markerPath) === false) return undefined;
+    const text = this.fs.readText(markerPath).trim();
+    if (/^[0-9a-f]{64}$/.test(text)) return { checksum: text };
+    return undefined;
   }
 
   private discardCachedDistribution(version: string, archivePath: string, markerPath: string): void {
     this.fs.remove(archivePath);
     this.fs.remove(markerPath);
     this.fs.remove(path.join(this.options.paths.cacheGradle, `gradle-${version}`));
+    this.fs.remove(this.installStatePath(version));
     this.options.logger.warn(`Discarded an unverified cached Gradle ${version} distribution`, 'Gradle');
   }
 
   private async expectedChecksum(
     url: string,
-    markerPath: string,
     projectRoot: string | undefined,
     wrapper: { distributionUrl?: string; distributionSha256Sum?: string } | undefined,
     version: string,
@@ -294,9 +385,7 @@ export class GradleManager {
         published,
       );
     }
-    const chosen = published ?? (declared as string);
-    if (projectRoot !== undefined) this.fs.writeText(markerPath, `${chosen.toLowerCase()}\n`);
-    return chosen.toLowerCase();
+    return (published ?? (declared as string)).toLowerCase();
   }
 
   private async fetchPublishedChecksum(url: string): Promise<string | undefined> {
@@ -310,18 +399,6 @@ export class GradleManager {
       }
     }
     return undefined;
-  }
-
-  private assertChecksum(url: string, expected: string | undefined, actual: string, archivePath: string): void {
-    if (expected === undefined) return;
-    if (actual === expected.toLowerCase()) return;
-    this.fs.remove(archivePath);
-    throw new GradleDistributionVerificationError(
-      `Checksum mismatch for ${url}: expected ${expected}, received ${actual}`,
-      url,
-      expected,
-      actual,
-    );
   }
 
   private findGradleHome(root: string): string | undefined {
