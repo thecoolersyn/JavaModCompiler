@@ -131,8 +131,10 @@ build compiles against, and JMC treats them differently.
   the build at `DISCOVER` with a `minecraft-mapping-mismatch` diagnostic, even when
   a loader would have ignored the argument. A silent contradiction is reported
   rather than ignored.
-* Passing a mappings path that does not exist, or a file whose header JMC cannot
-  recognise, fails the build at `PREPARE` rather than being ignored.
+* Passing a mappings path that does not exist fails the build at `DISCOVER` with
+  `mappings-path-missing`, and a directory JMC cannot identify a mapping provider
+  for fails there with `mappings-format-unknown`. Neither failure reaches the
+  delegated build.
 
 In short: the mappings argument is validated and recorded, but for Loom,
 ModDevGradle and ForgeGradle the effective mappings are the ones the project

@@ -127,6 +127,7 @@ export async function downloadFile(url: string, destination: string, options: Do
       const total = Number.isFinite(declaredLength) && declaredLength > 0 ? declaredLength : options.expectedSize;
       let received = 0;
       const hashed = crypto.createHash('sha256');
+      const sha1 = crypto.createHash('sha1');
       let lastChunkAt = Date.now();
       const source = Readable.fromWeb(response.body as never);
       const stallGuard = setInterval(() => {
@@ -141,6 +142,7 @@ export async function downloadFile(url: string, destination: string, options: Do
           lastChunkAt = Date.now();
           options.onProgress?.(received, total);
           hashed.update(chunk);
+          if (options.expectedSha1 !== undefined) sha1.update(chunk);
           callback(null, chunk);
         },
       });
@@ -153,12 +155,21 @@ export async function downloadFile(url: string, destination: string, options: Do
         await response.body.cancel().catch(() => undefined);
       }
       const actualSha256 = hashed.digest('hex');
+      const actualSha1 = sha1.digest('hex');
       if (options.expectedSha256 !== undefined && !equalsIgnoreCase(options.expectedSha256, actualSha256)) {
         await fsp.rm(temporary, { force: true });
         throw new DownloadError(
           'checksum',
           url,
           `Checksum mismatch for ${url}: expected ${options.expectedSha256}, received ${actualSha256}`,
+        );
+      }
+      if (options.expectedSha1 !== undefined && !equalsIgnoreCase(options.expectedSha1, actualSha1)) {
+        await fsp.rm(temporary, { force: true });
+        throw new DownloadError(
+          'checksum',
+          url,
+          `Checksum mismatch for ${url}: expected ${options.expectedSha1}, received ${actualSha1}`,
         );
       }
       if (options.expectedSize !== undefined) {

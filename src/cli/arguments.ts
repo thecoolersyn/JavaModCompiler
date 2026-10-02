@@ -39,6 +39,7 @@ export const KNOWN_COMMANDS = new Set([
   'plugins',
   'cache',
   'init',
+  'update',
 ]);
 
 const BOOLEAN_FLAGS: Record<string, keyof ParsedArguments> = {

@@ -16,6 +16,7 @@ export const USAGE_LINES: string[] = [
   'jmc plugins                            List registered plugins',
   'jmc cache                              Inspect the JMC cache',
   'jmc init                               Create a JMC configuration file in the project',
+  'jmc update                             Check GitHub for a newer JMC release',
   'jmc --help                             Show this help',
   'jmc --version                          Show the JMC version',
 ];

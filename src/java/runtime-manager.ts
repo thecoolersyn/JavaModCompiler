@@ -14,7 +14,7 @@ import {
   parseJavaVersionOutput,
   type JdkInstallation,
 } from './jdk-model.js';
-import { downloadFile } from '../net/download.js';
+import { downloadFile, sha256File } from '../net/download.js';
 import { extractArchive } from '../net/archive.js';
 
 export interface JavaRuntimeManagerOptions {
@@ -77,6 +77,10 @@ export class JavaRuntimeManager {
       const normalized = path.resolve(javaHome);
       const key = normalized.toLowerCase();
       if (found.has(key)) return;
+      if (this.isJmcManagedRuntimePath(normalized) && this.managedRuntimeIsVerified(normalized) === false) {
+        this.discardUnverifiedRuntime(normalized);
+        return;
+      }
       const installation = this.describeJavaHome(normalized, origin, platform.arch);
       if (installation !== undefined) found.set(key, installation);
     };
@@ -93,7 +97,12 @@ export class JavaRuntimeManager {
       for (const entry of this.fs.readDir(managedRoot)) {
         if (!entry.isDirectory) continue;
         const nested = path.join(entry.path, 'jdk');
-        register(this.fs.isDirectory(nested) ? nested : entry.path, 'jmc-managed');
+        const javaHome = this.fs.isDirectory(nested) ? nested : entry.path;
+        if (this.managedRuntimeIsVerified(javaHome) === false) {
+          this.discardUnverifiedRuntime(javaHome);
+          continue;
+        }
+        register(javaHome, 'jmc-managed');
       }
     }
 
@@ -327,14 +336,87 @@ export class JavaRuntimeManager {
       },
     });
     this.options.logger.info(`Extracting ${archiveName}`, 'Java');
+    this.fs.remove(installRoot);
     await extractArchive(archivePath, installRoot);
     const javaHome = locateExtractedJavaHome(installRoot, platform.os);
     const installation = this.describeJavaHome(javaHome, 'jmc-managed', platform.arch);
     if (installation === undefined) {
       throw new JavaRuntimeUnavailableError(majorVersion, `Extracted archive at ${javaHome} does not contain a usable java`);
     }
+    if (expectedChecksum === undefined) {
+      this.fs.remove(installRoot);
+      throw new JavaRuntimeUnavailableError(
+        majorVersion,
+        `Adoptium did not publish a SHA-256 checksum for ${archiveName}. JMC refuses to install an unverified JDK.`,
+      );
+    }
+    this.writeIntegrityRecord(javaHome, {
+      majorVersion,
+      cacheKey,
+      archiveName,
+      archiveChecksum: expectedChecksum,
+      algorithm: 'sha256',
+    });
     this.cachedScan = undefined;
     return installation;
+  }
+
+  private isJmcManagedRuntimePath(javaHome: string): boolean {
+    const normalized = path.resolve(javaHome).toLowerCase();
+    const markers = [path.resolve(this.options.paths.runtimes).toLowerCase()];
+    const home = process.env.HOME ?? process.env.USERPROFILE ?? '';
+    if (home.length > 0) markers.push(path.resolve(home, '.umc', 'runtimes').toLowerCase());
+    return markers.some((marker) => normalized === marker || normalized.startsWith(`${marker}${path.sep}`));
+  }
+
+  private integrityRecordPath(javaHome: string): string {
+    return path.join(javaHome, '.jmc-integrity.json');
+  }
+
+  private writeIntegrityRecord(
+    javaHome: string,
+    record: { majorVersion: number; cacheKey: string; archiveName: string; archiveChecksum: string; algorithm: string },
+  ): void {
+    try {
+      this.fs.writeText(
+        this.integrityRecordPath(javaHome),
+        `${JSON.stringify({ ...record, recordedAt: Date.now() }, null, 2)}\n`,
+      );
+    } catch {
+      return;
+    }
+  }
+
+  private managedRuntimeIsVerified(javaHome: string): boolean {
+    const recordPath = this.integrityRecordPath(javaHome);
+    if (this.fs.isFile(recordPath) === false) return false;
+    let record: {
+      majorVersion?: number;
+      cacheKey?: string;
+      archiveName?: string;
+      archiveChecksum?: string;
+      algorithm?: string;
+    };
+    try {
+      record = JSON.parse(this.fs.readText(recordPath)) as typeof record;
+    } catch {
+      return false;
+    }
+    if (typeof record.majorVersion !== 'number' || typeof record.cacheKey !== 'string') return false;
+    if (record.algorithm !== 'sha256' || typeof record.archiveChecksum !== 'string') return false;
+    if (/^[0-9a-f]{64}$/i.test(record.archiveChecksum) === false) return false;
+    const archiveName = typeof record.archiveName === 'string' ? record.archiveName : undefined;
+    if (archiveName === undefined) return false;
+    const archivePath = path.join(this.options.paths.cacheJava, archiveName);
+    if (this.fs.isFile(archivePath) === false) return false;
+    return sha256File(archivePath).toLowerCase() === record.archiveChecksum.toLowerCase();
+  }
+
+  private discardUnverifiedRuntime(javaHome: string): void {
+    const root = path.dirname(javaHome);
+    const container = path.dirname(root);
+    this.fs.remove(container);
+    this.options.logger.warn(`Discarded a managed JDK whose integrity could not be verified: ${container}`, 'Java');
   }
 
   managedJavaHomes(): string[] {

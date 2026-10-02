@@ -6,6 +6,7 @@ import {
   equalsIgnoreCase,
   sha256Buffer,
   sha256File,
+  sha1File,
   type DownloadOptions,
 } from '../net/download.js';
 import { extractArchive, archiveKindOf } from '../net/archive.js';
@@ -94,6 +95,19 @@ export class ContentCache {
         let actual: string;
         try {
           actual = sha256File(scoped);
+        } catch {
+          this.remove(target, toolchainKey);
+          return { hit: false, reason: 'cached file could not be read and has been removed' };
+        }
+        if (!equalsIgnoreCase(actual, meta.checksum)) {
+          this.remove(target, toolchainKey);
+          return { hit: false, reason: 'cached file failed checksum validation and has been removed' };
+        }
+      }
+      if (meta.checksum !== undefined && meta.checksumAlgorithm === 'sha1') {
+        let actual: string;
+        try {
+          actual = sha1File(scoped);
         } catch {
           this.remove(target, toolchainKey);
           return { hit: false, reason: 'cached file could not be read and has been removed' };

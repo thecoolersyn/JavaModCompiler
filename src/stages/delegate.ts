@@ -9,7 +9,7 @@ import { formatCommand, type ProcessRunResult } from '../platform/process.js';
 import { defaultFileSystem } from '../platform/fs.js';
 import { fileUriForPath } from '../platform/uri.js';
 import { collectRepositories } from './resolve.js';
-import { gradleEnvironment, gradleJavaArgs } from '../loader/base-adapter.js';
+import { gradleEnvironment, gradleJavaArgs, gradleTaskArguments } from '../loader/base-adapter.js';
 
 export interface DelegateExecutionInput {
   context: BuildContext;
@@ -144,6 +144,7 @@ export async function executeGradleTasks(input: DelegateExecutionInput): Promise
       ...plan.gradleArguments,
       ...(initScript === undefined ? [] : ['--init-script', initScript]),
       ...plan.buildTaskArguments,
+      ...gradleTaskArguments(context),
       task,
     ];
     const command = formatCommand(launcher.command, args);

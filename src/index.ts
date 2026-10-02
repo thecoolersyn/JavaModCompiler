@@ -94,6 +94,52 @@ export interface JmcApi {
   fileUriForPath(target: string): Promise<string>;
   lexGradle(source: string): Promise<Array<{ type: string; value: string }>>;
   toolchainManagedDependenciesFor(projectRoot: string): Promise<string[]>;
+  createUpdateChecker(home: string, responder?: (url: string, timeoutMs: number) => Promise<string>): Promise<{
+    check(options: {
+      currentVersion: string;
+      offline: boolean;
+      force: boolean;
+      json?: boolean;
+      now?: number;
+    }): Promise<{
+      currentVersion: string;
+      latestVersion?: string;
+      updateAvailable: boolean;
+      releaseTitle?: string;
+      releaseUrl?: string;
+      publishedAt?: string;
+      prerelease: boolean;
+      summary: Array<{ heading?: string; text: string }>;
+      checkedAt: number;
+      fromCache: boolean;
+      failure?: string;
+    }>;
+  }>;
+  updateNoticeFor(check: {
+    currentVersion: string;
+    latestVersion?: string;
+    updateAvailable: boolean;
+    releaseTitle?: string;
+    releaseUrl?: string;
+    summary: Array<{ heading?: string; text: string }>;
+  }): Promise<string[]>;
+  compareVersions(left: string, right: string): Promise<number>;
+  isUpdateAvailable(current: string, latest: string): Promise<boolean>;
+  extractReleaseSummary(body: string | undefined, limit?: number): Promise<Array<{ heading?: string; text: string }>>;
+  parseReleasePayload(payload: string): Promise<{
+    latestVersion?: string;
+    releaseTitle?: string;
+    releaseUrl?: string;
+    publishedAt?: string;
+    prerelease: boolean;
+    body?: string;
+  } | undefined>;
+  cleanupHarness(): Promise<{
+    registerHook(hook: () => void): void;
+    runCleanup(): Promise<number>;
+    sweepPartFiles(directory: string): void;
+    isInterrupted(): boolean;
+  }>;
   isValidFileUri(value: string): Promise<boolean>;
   assertRemappedArtifact(
     chosen: string,
@@ -319,6 +365,59 @@ export function createApi(): JmcApi {
       const { toolchainManagedDependencies } = await import('./stages/resolve.js');
       const project = await detectProject(projectRoot);
       return [...toolchainManagedDependencies(project)];
+    },
+    createUpdateChecker: async (home: string, responder?: (url: string, timeoutMs: number) => Promise<string>) => {
+      const { UpdateService } = await import('./update/update-service.js');
+      const { createPaths: createPathsForUpdate, ensurePathTree: ensureForUpdate } = await import('./platform/paths.js');
+      const paths = createPathsForUpdate({ ...process.env, JMC_HOME: home });
+      ensureForUpdate(paths);
+      const service = new UpdateService({ paths, fetchText: responder });
+      return {
+        check: async (options) => service.check({ ...options, json: options.json ?? false }),
+      };
+    },
+    updateNoticeFor: async (check) => {
+      const { formatUpdateNotice } = await import('./update/update-service.js');
+      return formatUpdateNotice({
+        prerelease: false,
+        checkedAt: 0,
+        fromCache: false,
+        ...check,
+      });
+    },
+    compareVersions: async (left, right) => {
+      const { compareVersions } = await import('./update/update-service.js');
+      return compareVersions(left, right);
+    },
+    isUpdateAvailable: async (current, latest) => {
+      const { isUpdateAvailable } = await import('./update/update-service.js');
+      return isUpdateAvailable(current, latest);
+    },
+    extractReleaseSummary: async (body, limit) => {
+      const { extractSummary } = await import('./update/update-service.js');
+      return extractSummary(body, limit);
+    },
+    parseReleasePayload: async (payload) => {
+      const { parseReleaseResponse } = await import('./update/update-service.js');
+      return parseReleaseResponse(payload);
+    },
+    cleanupHarness: async () => {
+      const { registerCleanupHook, runCleanup, isInterrupted, sweepPartFilesIn } = await import(
+        './platform/cleanup.js'
+      );
+      return {
+        registerHook: (hook) => {
+          registerCleanupHook(hook);
+        },
+        runCleanup: async () => {
+          await runCleanup('');
+          return 0;
+        },
+        sweepPartFiles: (directory: string) => {
+          sweepPartFilesIn(directory);
+        },
+        isInterrupted,
+      };
     },
     assertRemappedArtifact: async (chosen, all, loaderPlan) => {
       const { assertRemappedArtifact } = await import('./stages/package.js');

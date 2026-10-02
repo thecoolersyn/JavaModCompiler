@@ -47,8 +47,12 @@ if (!fs.existsSync(bundle)) {
 
 const launcherExists = check('unix launcher exists', fs.existsSync(bundleLauncher), line('path', bundleLauncher));
 const windowsLauncherExists = check('windows launcher exists', fs.existsSync(path.join(root, 'dist', 'bin', 'jmc.cmd')), '');
-const mode = fs.statSync(bundleLauncher).mode & 0o777;
-const executable = check('unix launcher is executable', (mode & 0o111) !== 0, `mode=${mode.toString(8)}`);
+const mode = launcherExists ? fs.statSync(bundleLauncher).mode & 0o777 : 0;
+const executable = check(
+  'unix launcher is executable',
+  process.platform === 'win32' ? true : launcherExists && (mode & 0o111) !== 0,
+  process.platform === 'win32' ? 'skipped on Windows; jmc.cmd is the launcher' : `mode=${mode.toString(8)}`,
+);
 
 fs.rmSync(targetHome, { recursive: true, force: true });
 fs.mkdirSync(targetHome, { recursive: true });
@@ -86,18 +90,42 @@ const cacheParsed = (() => {
     return undefined;
   }
 })();
-check('JMC_HOME isolates the cache', cacheParsed?.home === env.JMC_HOME, line('home', String(cacheParsed?.home)));
+const homeIsolated = check('JMC_HOME isolates the cache', cacheParsed?.home === env.JMC_HOME, line('home', String(cacheParsed?.home)));
 
-const noLeak = !fs.existsSync(path.join(process.env.HOME ?? '', '.minecraft')) || true;
-check('no user Minecraft directory is required', noLeak, '');
+const userMinecraft = path.join(process.env.HOME ?? process.env.USERPROFILE ?? '', '.minecraft');
+const minecraftExistedBefore = fs.existsSync(userMinecraft);
+const noLeak = check(
+  'no user Minecraft directory is required',
+  minecraftExistedBefore === false && fs.existsSync(userMinecraft) === false,
+  minecraftExistedBefore ? 'a user Minecraft directory exists; JMC must not read or write it' : '',
+);
 
 const packageJson = readJson(path.join(root, 'package.json'));
-check('package exposes the jmc binary', packageJson.bin?.jmc === './dist/bin/jmc.mjs', String(packageJson.bin?.jmc));
-check('package targets Node 20 or newer', /20/.test(packageJson.engines?.node ?? ''), String(packageJson.engines?.node));
-
-const results = [launcherExists, windowsLauncherExists, executable, versionOk, doctorOk, missingChecks.length === 0, cacheParsed !== undefined, noLeak].every(
-  (value) => value === true,
+const binExposed = check('package exposes the jmc binary', packageJson.bin?.jmc === './dist/bin/jmc.mjs', String(packageJson.bin?.jmc));
+const enginesNode = String(packageJson.engines?.node ?? '');
+const engineFloor = Number.parseInt(/(\d+)/.exec(enginesNode)?.[1] ?? '0', 10);
+const engineMajor = Number.parseInt(process.versions.node.split('.')[0] ?? '0', 10);
+const engineOk = check(
+  'the declared Node floor can run the test runner',
+  engineFloor >= 21 || process.env.JMC_SKIP_ENGINE_CHECK === '1',
+  `engines.node=${enginesNode} running=${process.versions.node}`,
 );
+
+const results = [
+  launcherExists,
+  windowsLauncherExists,
+  executable,
+  versionOk,
+  doctorOk,
+  missingChecks.length === 0,
+  cacheParsed !== undefined,
+  homeIsolated,
+  noLeak,
+  binExposed,
+  engineOk,
+].every((value) => value === true);
+
+void engineMajor;
 
 if (results) {
   fs.rmSync(targetHome, { recursive: true, force: true });

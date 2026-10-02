@@ -18,6 +18,7 @@ import { createPaths, ensurePathTree } from '../platform/paths.js';
 import { defaultFileSystem } from '../platform/fs.js';
 import { detectPlatform } from '../platform/os.js';
 import { formatBytes } from '../platform/resources.js';
+import { formatUpdateNotice, UpdateService, type UpdateCheck } from '../update/update-service.js';
 
 export interface CliStreams {
   stdout: NodeJS.WriteStream;
@@ -30,10 +31,122 @@ export async function runCli(argv: string[], streams: CliStreams): Promise<numbe
 
   if (parsed.json) {
     const logger = createLogger(parsed, streams, true);
-    return dispatch(parsed, streams, logger, true);
+    return dispatchWithUpdate(parsed, streams, logger);
   }
   const logger = createLogger(parsed, streams, false);
-  return dispatch(parsed, streams, logger, false);
+  return dispatchWithUpdate(parsed, streams, logger);
+}
+
+interface PendingUpdateCheck {
+  promise?: Promise<void>;
+  cancelled: boolean;
+  latest?: UpdateCheck;
+}
+
+async function dispatchWithUpdate(
+  parsed: ReturnType<typeof parseArguments>['parsed'],
+  streams: CliStreams,
+  logger: Logger,
+): Promise<number> {
+  const pending = startUpdateCheck(parsed);
+  try {
+    const exitCode = await dispatch(parsed, streams, logger, parsed.json);
+    await settleUpdateCheck(pending, logger);
+    return exitCode;
+  } finally {
+    pending.cancelled = true;
+  }
+}
+
+function startUpdateCheck(parsed: ReturnType<typeof parseArguments>['parsed']): PendingUpdateCheck {
+  const pending: PendingUpdateCheck = { cancelled: false };
+  if (parsed.command === 'update' || parsed.command === 'init') return pending;
+  if (parsed.quiet) return pending;
+  if (process.env.JMC_DISABLE_UPDATE_CHECK === '1') return pending;
+  const paths = createPaths(process.env);
+  try {
+    ensurePathTree(paths);
+  } catch {
+    return pending;
+  }
+  const service = new UpdateService({ paths });
+  pending.promise = service
+    .check({ currentVersion: JMC_VERSION, offline: parsed.offline, force: false, json: parsed.json })
+    .then((check) => {
+      pending.latest = check;
+    })
+    .catch(() => undefined);
+  return pending;
+}
+
+async function settleUpdateCheck(pending: PendingUpdateCheck, logger: Logger): Promise<void> {
+  if (pending.promise === undefined) return;
+  await pending.promise;
+  if (pending.cancelled) return;
+  const check = pending.latest;
+  if (check === undefined || check.updateAvailable === false) return;
+  for (const line of formatUpdateNotice(check)) logger.raw(line);
+  await logger.flush();
+}
+
+async function runUpdateCommand(
+  parsed: ReturnType<typeof parseArguments>['parsed'],
+  streams: CliStreams,
+  json: boolean,
+): Promise<number> {
+  const paths = createPaths(process.env);
+  ensurePathTree(paths);
+  const service = new UpdateService({ paths });
+  const check = await service.check({
+    currentVersion: JMC_VERSION,
+    offline: parsed.offline,
+    force: true,
+    json,
+  });
+  if (json) {
+    writeJson(streams.stdout, {
+      command: 'update',
+      currentVersion: check.currentVersion,
+      latestVersion: check.latestVersion ?? null,
+      updateAvailable: check.updateAvailable,
+      releaseTitle: check.releaseTitle ?? null,
+      releaseUrl: check.releaseUrl ?? null,
+      publishedAt: check.publishedAt ?? null,
+      prerelease: check.prerelease,
+      summary: check.summary,
+      offline: parsed.offline,
+      checkedAt: check.checkedAt,
+      fromCache: check.fromCache,
+      failure: check.failure ?? null,
+    });
+    return EXIT_CODES.success;
+  }
+  const lines = [`Installed version: ${check.currentVersion}`];
+  if (check.failure !== undefined) {
+    lines.push(`Update check: unavailable (${check.failure})`);
+    lines.push('JMC continues regardless; run jmc update again later.');
+  } else if (check.latestVersion === undefined) {
+    lines.push('Latest version: unknown');
+  } else {
+    lines.push(`Latest version: ${check.latestVersion}`);
+    lines.push(check.updateAvailable ? 'An update is available. JMC does not install updates automatically.' : 'JMC is up to date.');
+    if (check.releaseTitle !== undefined) lines.push(`Release: ${check.releaseTitle}`);
+    if (check.summary.length > 0) {
+      lines.push('Release notes:');
+      let currentHeading: string | undefined;
+      for (const entry of check.summary) {
+        if (entry.heading !== undefined && entry.heading !== currentHeading) {
+          currentHeading = entry.heading;
+          lines.push(`  ${entry.heading}`);
+          continue;
+        }
+        lines.push(`  - ${entry.text}`);
+      }
+    }
+    if (check.releaseUrl !== undefined) lines.push(`GitHub: ${check.releaseUrl}`);
+  }
+  for (const line of lines) streams.stdout.write(`${line}\n`);
+  return EXIT_CODES.success;
 }
 
 class JsonModeSink implements LogSink {
@@ -105,6 +218,8 @@ async function dispatch(
       return runCacheCommand(streams, logger, json);
     case 'init':
       return runInitCommand(parsed, streams, logger, json);
+    case 'update':
+      return runUpdateCommand(parsed, streams, json);
     case 'build':
       return runBuildCommand(parsed, streams, logger, json);
     default:

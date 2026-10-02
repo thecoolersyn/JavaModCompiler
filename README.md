@@ -17,7 +17,7 @@ repositories, is detected from the project and supplied by JMC when missing.
 
 ## Requirements
 
-* Node.js 20.10 or newer
+* Node.js 22.0 or newer
 * Windows, Linux or macOS on x64 or arm64
 * No system Java, Gradle or Minecraft installation is required
 
@@ -81,6 +81,7 @@ jmc mappings-26.2 mod.jar
 | `jmc plugins` | List built-in adapters and installed plugins |
 | `jmc cache` | Show cache section sizes |
 | `jmc init [project]` | Write a `jmc.json` configuration file |
+| `jmc update` | Check GitHub for a newer JMC release |
 | `jmc --help` | Show usage |
 | `jmc --version` | Show the JMC version |
 
@@ -101,6 +102,8 @@ jmc mappings-26.2 mod.jar
 | `--keep-workspace` | Retain the isolated workspace |
 | `--runtime-test` | Launch Minecraft in a disposable sandbox |
 | `--no-cache` | Bypass the JMC cache |
+| `--clean` | Re-run the delegated tasks rather than reusing up-to-date outputs |
+| `--force` | Refresh remote dependency metadata instead of reusing cached resolutions |
 | `--clean` | Clear build outputs first |
 | `--force` | Ignore cached decisions |
 | `--yes` | Authorize build script execution without prompting |
@@ -176,7 +179,7 @@ proven end to end from the loaders it only detects and parses.
 
 | Loader | Status | Notes |
 | --- | --- | --- |
-| Fabric (Loom) | Verified by a real end-to-end build | CI builds a Loom project and asserts the packaged artifact |
+| Fabric (Loom) | Detected and parsed only | Loom fixtures and unit tests cover detection, the `fabric.mod.json` mixin checks and artifact selection. No Loom project is built end to end by this repository's test suite, so the production-artifact path is covered by unit tests and by generic Gradle builds that produce a `mymod-1.0.0.jar` beside `mymod-1.0.0-dev.jar`, not by a real Loom build. |
 | Generic Gradle (`java` plugin) | Verified by a real end-to-end build | CI compiles, packages, validates and reports on a plain Gradle project |
 | NeoForge (ModDevGradle 2.x) | Verified by a real end-to-end build | `tests/integration/loader-builds.test.mjs` builds the `neoforge-1.21` fixture and asserts COMPILE, PACKAGE and VALIDATE all pass |
 | Forge (ForgeGradle 2.x to 7.x) | Detected and parsed only | Per-plugin Gradle and JDK rules are covered by tests, and a real 1.12.2 build selects Gradle 4.10.3 with a managed Java 8 runtime, but ForgeGradle 2.3 no longer resolves from the live Forge maven so the end-to-end build is not claimed |
@@ -245,14 +248,55 @@ authorization to run build scripts; pass `--yes` or set
 ## Security
 
 A project build executes build-system code. JMC reports this clearly on the first
-build of a project and requires explicit authorization. The approval covers a
-SHA-256 digest of every build script the project can execute, including
-subprojects, `buildSrc`, the Gradle wrapper and any `apply from:` target; changing
-any of them revokes the approval. Downloads are verified against the checksum the
-source publishes, and a distribution whose checksum cannot be fetched is refused
-rather than installed. Cached Gradle archives and JDK installs are checksum
-re-verified on reuse, and corrupt entries are discarded rather than reused.
+build of a project and requires explicit authorization. The approval is a SHA-256
+digest over the relative path and the contents of the build scripts JMC collects:
+the root and subproject build and settings files, `buildSrc`, included builds, the
+Gradle and Maven wrapper files, the `gradle` directory including
+`libs.versions.toml`, `.mvn` configuration, every `pom.xml`, and the targets of
+`apply from:` statements that resolve to a local file. Changing any collected
+script revokes the approval, and a bare `touch` does not. JMC does not collect
+`package.json`, a remote `apply from:` URL, a `settings.d` script, or a Gradle init
+script supplied outside the project; a project that relies on those is not fully
+covered by the approval.
+
+Downloads are verified against the checksum the source publishes. A Gradle
+distribution must match the published `SHA-256` or the wrapper's
+`distributionSha256Sum`, and is refused when neither can be obtained. Minecraft
+client, server, mappings and library artifacts are verified against the SHA-1 the
+Mojang version manifest publishes, and the cache stores the algorithm that was
+actually checked. A managed JDK is installed only when Adoptium publishes a
+SHA-256 for it.
+
+Reuse is verified rather than assumed. A cached Gradle archive is re-hashed
+against its marker on every reuse, and the extracted tree is reinstalled from the
+verified archive when it carries no installation record or its record does not
+match, so the distribution JMC executes is the one that was verified. A managed
+JDK is discarded unless its recorded archive checksum still matches the archive on
+disk. Entries that fail verification are discarded instead of being reused.
 `--offline` guarantees no network requests are made.
+
+## Updates
+
+Every command checks GitHub for a newer release in the background and prints a
+short notice near the end of its output when one exists:
+
+```
+JMC update available: 1.0.0 → 1.1.0
+Release: Release 1.1.0
+Latest changes:
+- Fixed
+- Fixed Fabric/Loom production artifact detection
+- Added
+GitHub: https://github.com/thecoolersyn/JavaModCompiler/releases/tag/v1.1.0
+```
+
+`jmc update` forces a fresh check and prints the installed version, the latest
+version, a bounded release-note summary and the release URL. JMC never installs
+anything on its own. The check is skipped entirely with `--offline` and in
+`--quiet` mode, adds no output in `--json` mode, never changes a command's exit
+code, and reuses a cached result for six hours so at most one request is made per
+six hours. An unreachable, rate-limited or malformed GitHub response is recorded
+and ignored, and the command continues.
 
 ## Documentation
 

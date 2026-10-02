@@ -175,6 +175,13 @@ export function gradleEnvironment(context: BuildContext, javaHome: string | unde
   return env;
 }
 
+export function gradleTaskArguments(context: BuildContext): string[] {
+  const extra: string[] = [];
+  if (context.options.clean) extra.push('--rerun-tasks');
+  if (context.options.force) extra.push('--refresh-dependencies');
+  return extra;
+}
+
 export function gradleJavaArgs(context: BuildContext): string[] {
   const heap = Math.floor(context.services.resourceBudget.gradleMaxHeapBytes / (1024 * 1024));
   return [`-Dorg.gradle.jvmargs=-Xmx${heap}m -XX:MaxMetaspaceSize=512m`, '-Dfile.encoding=UTF-8'];

@@ -8,7 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const bundle = path.join(root, 'dist', 'bin', 'jmc.mjs');
 
-const target = process.argv[2] ?? path.join(root, 'dist');
+const target = process.argv[2] ?? path.join(root, 'dist-release');
 const packageRoot = root;
 const version = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8')).version;
 const platformToken = process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'macos' : 'linux';
@@ -131,12 +131,13 @@ for (const name of ['jmc', 'jmc.sh', 'jmc.cmd', 'jmc.ps1', 'jmc.mjs']) {
   }
 }
 
-for (const script of ['install.sh', 'install.ps1', 'install-npm.sh']) {
+for (const script of ['install.sh', 'install.ps1', 'install.mjs']) {
   const from = path.join(packageRoot, 'scripts', script);
   if (!fs.existsSync(from)) continue;
   fs.copyFileSync(from, path.join(OUT_DIR, script));
   if (process.platform !== 'win32') fs.chmodSync(path.join(OUT_DIR, script), 0o755);
 }
+fs.copyFileSync(path.join(packageRoot, 'scripts', 'install.mjs'), path.join(BIN_DIR, 'install.mjs'));
 
 fs.mkdirSync(DOCS_DIR, { recursive: true });
 for (const name of ['README.md', 'ARCHITECTURE.md', 'CONTRIBUTING.md']) {
@@ -146,7 +147,7 @@ for (const name of ['README.md', 'ARCHITECTURE.md', 'CONTRIBUTING.md']) {
 const docsSource = path.join(packageRoot, 'docs');
 if (fs.existsSync(docsSource)) {
   for (const file of collectFiles(docsSource, () => true)) {
-    const destination = path.join(DOCS_DIR, 'docs', path.relative(docsSource, file));
+    const destination = path.join(DOCS_DIR, path.relative(docsSource, file));
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(file, destination);
   }
@@ -154,7 +155,7 @@ if (fs.existsSync(docsSource)) {
 
 fs.writeFileSync(
   path.join(OUT_DIR, 'install.json'),
-  `${JSON.stringify({ name: 'jmc', version, platform: platformToken, arch: archToken, node: '>=20.10.0', createdAt: ZIP_EPOCH.toISOString() }, null, 2)}\n`,
+  `${JSON.stringify({ name: 'jmc', version, platform: platformToken, arch: archToken, node: '>=22.0.0', createdAt: ZIP_EPOCH.toISOString() }, null, 2)}\n`,
   'utf8',
 );
 

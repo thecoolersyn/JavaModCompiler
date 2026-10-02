@@ -9,20 +9,28 @@ const SOURCE_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts',
   '.java', '.kt', '.kts', '.scala', '.groovy', '.rs', '.py',
   '.sh', '.bash', '.zsh', '.fish', '.ps1', '.psm1',
-  '.gradle', '.css', '.scss', '.html', '.htm', '.xml',
-  '.yaml', '.yml', '.toml', '.ini', '.cfg', '.bat', '.cmd',
+  '.gradle', '.kts', '.css', '.scss', '.html', '.htm', '.xml',
+  '.yaml', '.yml', '.toml', '.ini', '.cfg', '.bat', '.cmd', '.properties',
 ]);
 
-const SCANNED_DIRECTORIES = ['src', 'tests', 'fixtures', 'scripts', '.github'];
+const SCANNED_DIRECTORIES = ['src', 'tests', 'fixtures', 'scripts', 'docs', '.github'];
 const SCANNED_ROOT_FILES = new Set([
   'package.json',
+  'package-lock.json',
   'tsconfig.json',
   '.gitignore',
   '.npmignore',
-  '.editorconfig',
   'build.gradle',
   'settings.gradle',
   'gradle.properties',
+  '.editorconfig',
+  'LICENSE',
+]);
+
+const EXCLUDED_DIRECTORIES = new Set(['node_modules', '.git', 'dist', 'dist-release', 'types', '.jmc-build', '.jmc-test-tmp']);
+
+const HASH_COMMENT_EXTENSIONS = new Set([
+  '.sh', '.bash', '.zsh', '.fish', '.gradle', '.kts', '.toml', '.ini', '.cfg', '.properties', '.yaml', '.yml', '.bat', '.cmd',
 ]);
 
 const MARKER_RULES = [
@@ -32,7 +40,9 @@ const MARKER_RULES = [
 ];
 
 function isCommentBearing(filePath) {
-  if (filePath.endsWith('.json')) return false;
+  const base = path.basename(filePath);
+  if (base === 'package-lock.json') return false;
+  if (filePath.endsWith('.json') && !filePath.endsWith('.jsonc')) return false;
   if (filePath.endsWith('.md')) return false;
   return SOURCE_EXTENSIONS.has(path.extname(filePath)) || filePath.endsWith('.jsonc');
 }
@@ -46,14 +56,14 @@ function collectFiles() {
   }
   for (const relative of SCANNED_ROOT_FILES) {
     const absolute = path.join(root, relative);
-    if (fs.existsSync(absolute)) files.push(absolute);
+    if (fs.existsSync(absolute) && isCommentBearing(absolute)) files.push(absolute);
   }
   return files;
 }
 
 function collectRecursive(directory, files) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-    if (['node_modules', '.git', 'dist', 'types', '.jmc-build'].includes(entry.name)) continue;
+    if (EXCLUDED_DIRECTORIES.has(entry.name)) continue;
     const absolute = path.join(directory, entry.name);
     if (entry.isDirectory()) {
       collectRecursive(absolute, files);
@@ -66,9 +76,13 @@ function collectRecursive(directory, files) {
 function stripLiterals(line) {
   let out = '';
   let index = 0;
+  let lineComment = false;
   while (index < line.length) {
     const char = line[index];
-    if (char === '/' && line[index + 1] === '/') break;
+    if (char === '/' && line[index + 1] === '/') {
+      lineComment = true;
+      break;
+    }
     if (char === '/' && line[index + 1] === '*') {
       const end = line.indexOf('*/', index + 2);
       if (end === -1) break;
@@ -121,7 +135,7 @@ function stripLiterals(line) {
     out += char;
     index += 1;
   }
-  return out;
+  return { code: out, lineComment };
 }
 
 function lastMeaningful(text) {
@@ -133,18 +147,33 @@ function lastMeaningful(text) {
   return '';
 }
 
+function hasHashComment(code) {
+  return /(^|\s)#/.test(code);
+}
+
 const files = collectFiles();
 const violations = [];
+
+const SLASH_COMMENT_EXTENSIONS = new Set([
+  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts',
+  '.java', '.kt', '.kts', '.scala', '.groovy', '.rs', '.py', '.css', '.scss',
+]);
 
 for (const file of files) {
   const content = fs.readFileSync(file, 'utf8');
   const relative = path.relative(root, file);
+  const extension = path.extname(file);
   const lines = content.split('\n');
   for (let index = 0; index < lines.length; index += 1) {
     const raw = lines[index];
-    const code = stripLiterals(raw);
-    if (path.extname(file) === '.jsonc' && /^\s*\/\//.test(code)) {
+    if (index === 0 && /^#!/.test(raw.trim())) continue;
+    if (raw.trim().length === 0) continue;
+    const { code, lineComment } = stripLiterals(raw);
+    if (lineComment && SLASH_COMMENT_EXTENSIONS.has(extension)) {
       violations.push({ file: relative, line: index + 1, rule: 'line-comment', text: raw.trim().slice(0, 120) });
+    }
+    if (HASH_COMMENT_EXTENSIONS.has(extension) && hasHashComment(code)) {
+      violations.push({ file: relative, line: index + 1, rule: 'hash-comment', text: raw.trim().slice(0, 120) });
     }
     for (const rule of MARKER_RULES) {
       if (rule.test(code)) {

@@ -4,11 +4,22 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, '..');
-const bundle = path.join(root, 'dist', 'bin', 'jmc.mjs');
-const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
+const releaseBundle = path.join(here, 'jmc.mjs');
+const sourceBundle = path.resolve(here, '..', 'dist', 'bin', 'jmc.mjs');
+const bundle = fs.existsSync(releaseBundle) ? releaseBundle : sourceBundle;
+const binRoot = fs.existsSync(releaseBundle) ? here : path.resolve(here, '..', 'dist', 'bin');
+const version = readVersion();
 
-const home = process.argv[2] ?? os.homedir();
+function readVersion() {
+  const manifest = path.resolve(here, '..', 'package.json');
+  if (fs.existsSync(manifest)) return JSON.parse(fs.readFileSync(manifest, 'utf8')).version;
+  for (const candidate of [path.join(here, 'install.json'), path.join(here, '..', 'install.json')]) {
+    if (fs.existsSync(candidate)) return JSON.parse(fs.readFileSync(candidate, 'utf8')).version;
+  }
+  return '0.0.0';
+}
+
+const home = process.argv[2] ?? process.env.JMC_HOME ?? os.homedir();
 const platform = process.platform;
 const homeDir = platform === 'win32' ? process.env.LOCALAPPDATA ?? path.join(home, 'AppData', 'Local') : home;
 const installRoot = path.join(homeDir, '.umc');
@@ -19,7 +30,7 @@ const entries = ['jmc', 'jmc.sh', 'jmc.cmd', 'jmc.ps1', 'jmc.mjs'];
 function copyBundle() {
   fs.mkdirSync(binDir, { recursive: true });
   for (const name of entries) {
-    const from = path.join(root, 'dist', 'bin', name);
+    const from = path.join(binRoot, name);
     if (!fs.existsSync(from)) continue;
     fs.copyFileSync(from, path.join(binDir, name));
   }
@@ -100,6 +111,14 @@ function spawnSyncProbe(command, args) {
 import { spawnSync } from 'node:child_process';
 
 function spawnSyncCompat(command, args) {
+  if (platform === 'win32' && /\.(cmd|bat)$/i.test(command)) {
+    const line = `/d /s /c ""${command}" ${args.map((value) => `"${value}"`).join(' ')}"`;
+    const result = spawnSync(process.env.ComSpec ?? 'cmd.exe', [line], {
+      encoding: 'utf8',
+      windowsVerbatimArguments: true,
+    });
+    return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+  }
   const result = spawnSync(command, args, { encoding: 'utf8' });
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 }

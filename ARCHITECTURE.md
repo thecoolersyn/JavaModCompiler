@@ -132,9 +132,11 @@ corrupt entries and prevents reuse across incompatible toolchains.
 
 `src/runtime` implements the disposable runtime sandbox and crash classification.
 `src/security` implements build script authorization: the approval digest is a
-SHA-256 over the relative path and the contents of every build script the project
-can execute, covering subprojects, `buildSrc`, included builds, `apply from:`
-targets, the Gradle wrapper and Maven configuration. `--yes` and
+SHA-256 over the relative path and the contents of the build scripts JMC
+collects, covering subprojects, `buildSrc`, included builds, local `apply from:`
+targets, the Gradle and Maven wrapper files, the `gradle` directory, `.mvn`
+configuration and every `pom.xml`. Remote `apply from:` URLs, `package.json` and
+external Gradle init scripts are outside that set. `--yes` and
 `JMC_TRUST_PROJECT_SCRIPTS=1` authorize a single run and never persist a record.
 `src/diagnostics` converts raw build output into structured, evidence-based
 diagnostics.

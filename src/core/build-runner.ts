@@ -12,6 +12,7 @@ import { validateStage } from '../stages/validate.js';
 import { runtimeTestStage, runtimeResultOf } from '../stages/runtime-test.js';
 import { reportStage } from '../stages/report.js';
 import { defaultFileSystem } from '../platform/fs.js';
+import { registerCleanupHook, sweepAbandonedPartFiles, workspaceCleanupHook } from '../platform/cleanup.js';
 
 export interface ExecuteBuildInput {
   context: BuildContext;
@@ -22,6 +23,18 @@ export async function executeBuild(input: ExecuteBuildInput): Promise<PipelineRe
   const { context, startedAt } = input;
   context.jmcVersion = context.jmcVersion ?? '1.0.0';
 
+  sweepAbandonedPartFiles(context.paths);
+  const releaseWorkspaceHook = registerCleanupHook(
+    workspaceCleanupHook(context.workspace.root, context.options.keepWorkspace || context.options.debug),
+  );
+  try {
+    return await runPipeline(context, startedAt);
+  } finally {
+    releaseWorkspaceHook();
+  }
+}
+
+async function runPipeline(context: BuildContext, startedAt: number): Promise<PipelineResult> {
   const pipeline = new BuildPipeline({
     continueOnWarning: true,
     stages: [
@@ -141,7 +154,6 @@ function cleanupWorkspace(context: BuildContext, status: 'pass' | 'failed' | 'wa
   }
   defaultFileSystem.remove(context.workspace.root);
 }
-
 export function buildOptionsFrom(input: {
   projectRoot: string;
   mappingsPath?: string;

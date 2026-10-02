@@ -2,6 +2,7 @@ import { spawn, spawnSync, type ChildProcess, type SpawnOptions } from 'node:chi
 import fs from 'node:fs';
 import path from 'node:path';
 import { detectPlatform } from './os.js';
+import { trackChild } from './cleanup.js';
 
 export interface ProcessRunOptions {
   cwd?: string;
@@ -113,9 +114,15 @@ export class ProcessRunner {
         });
       };
 
-      child.on('error', (error: Error) => finish(null, null, error.message));
-      child.on('close', (code, signal) => finish(code, signal));
-
+      const untrack = trackChild(child.pid);
+      child.on('error', (error: Error) => {
+        untrack();
+        finish(null, null, error.message);
+      });
+      child.on('close', (code, signal) => {
+        untrack();
+        finish(code, signal);
+      });
       if (options.input !== undefined) {
         child.stdin?.end(options.input);
       } else {
