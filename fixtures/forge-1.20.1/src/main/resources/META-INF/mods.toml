@@ -1,0 +1,8 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="modernforge"
+version="1.0.0"
+description="A modern ForgeGradle 6 fixture"

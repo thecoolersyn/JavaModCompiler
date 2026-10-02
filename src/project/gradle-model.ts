@@ -17,6 +17,7 @@ export interface GradleRepositoryDescriptor {
 export interface GradlePluginDescriptor {
   id: string;
   version?: string;
+  versionRef?: string;
   applyDeclaration?: string;
 }
 
@@ -32,6 +33,7 @@ export interface GradleProjectModel {
   propertyFiles: string[];
   wrapperVersion?: string;
   plugins: GradlePluginDescriptor[];
+  buildscriptClasspath: string[];
   repositories: GradleRepositoryDescriptor[];
   dependencies: GradleDependencyBlock;
   properties: Record<string, string>;

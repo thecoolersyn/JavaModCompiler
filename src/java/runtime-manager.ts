@@ -283,7 +283,7 @@ export class JavaRuntimeManager {
     const platform = detectPlatform();
     const cacheKey = javaPlatformKey(platform);
     const architecture = cacheKey.includes('-') ? (cacheKey.split('-')[1] as string) : cacheKey;
-    const osToken = platform.os === 'darwin' ? 'mac' : platform.os;
+    const osToken = adoptiumOsToken(platform.os);
     const url = `${ADOPTIUM_API}/${majorVersion}/hotspot?architecture=${architecture}&image_type=jdk&os=${osToken}&vendor=eclipse`;
     this.options.logger.debug(`Querying Adoptium API for JDK ${majorVersion} (${osToken}/${architecture})`, 'Java');
     const response = await fetch(url, { redirect: 'follow' });
@@ -408,8 +408,14 @@ function detectJavaArchitecture(javaExecutable: string, fallback: string): JdkIn
   return fallback as JdkInstallation['architecture'];
 }
 
+export function adoptiumOsToken(os: OperatingSystem | string): string {
+  if (os === 'darwin') return 'mac';
+  if (os === 'win32') return 'windows';
+  return os;
+}
+
 function selectAdoptiumBinary(payload: AdoptiumRelease[], os: string, arch: string): AdoptiumBinary | undefined {
-  const wantedOs = os === 'darwin' ? 'mac' : os;
+  const wantedOs = adoptiumOsToken(os);
   const wantedArch = arch === 'arm64' ? 'aarch64' : arch === 'x64' ? 'x64' : arch;
   const binaries: AdoptiumBinary[] = [];
   for (const release of payload) {

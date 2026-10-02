@@ -1,18 +1,39 @@
 buildscript {
     repositories {
-        maven { url = 'https://maven.minecraftforge.net' }
+        maven {
+            name = 'forge'
+            url = 'https://maven.minecraftforge.net/'
+        }
+        maven {
+            name = 'minecraft'
+            url = 'https://libraries.minecraft.net/'
+        }
         mavenCentral()
     }
     dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:5.1.+'
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
     }
 }
 
 apply plugin: 'net.minecraftforge.gradle'
 
-archivesBaseName = 'legacyforge'
 version = '1.0.0'
+group = 'com.example.legacyforge'
+archivesBaseName = 'legacyforge'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+minecraft {
+    version = '1.12.2-14.23.5.2859'
+    runDir = 'run'
+    mappings = 'stable_39'
+}
+
+repositories {
+    mavenCentral()
+}
 
 dependencies {
-    minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2859'
+    compile 'net.minecraftforge:forge:1.12.2-14.23.5.2859'
 }

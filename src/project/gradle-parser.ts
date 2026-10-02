@@ -45,6 +45,7 @@ export function parseGradleProject(input: ParseGradleProjectInput): GradleProjec
   }
 
   const plugins: GradlePluginDescriptor[] = [];
+  const buildscriptClasspath: string[] = [];
   const repositories: GradleRepositoryDescriptor[] = [];
   const dependencies: GradleDependencyBlock = { dependencies: [], versionCatalogs: {}, platformConstraints: [], fileCollections: [] };
   const tasksOfInterest = new Set<string>();
@@ -68,12 +69,23 @@ export function parseGradleProject(input: ParseGradleProjectInput): GradleProjec
       const word = token.value;
       const cursor = new TokenStream(tokens, loopStart + 1);
 
+      if (word === 'apply' && tokens[loopStart + 1]?.value === 'plugin') {
+        let target = loopStart + 2;
+        if (tokens[target]?.value === ':') target += 1;
+        const literal = tokens[target];
+        if (literal?.type === 'string') {
+          plugins.push({ id: literal.value, applyDeclaration: 'apply-declaration' });
+          for (let step = loopStart; step < target; step += 1) stream.next();
+        }
+        continue;
+      }
       if (word === 'plugins') {
         collectPlugins(cursor.skipBalanced('{', '}'), plugins, kotlin);
         continue;
       }
       if (word === 'buildscript') {
-        cursor.skipBalanced('{', '}');
+        const body = cursor.skipBalanced('{', '}');
+        collectClasspath(body, buildscriptClasspath);
         continue;
       }
       if (word === 'repositories') {
@@ -150,6 +162,7 @@ export function parseGradleProject(input: ParseGradleProjectInput): GradleProjec
     propertyFiles,
     wrapperVersion,
     plugins: dedupePlugins(plugins),
+    buildscriptClasspath: [...new Set(buildscriptClasspath)],
     repositories: dedupeRepositories(repositories),
     dependencies,
     properties,
@@ -280,29 +293,92 @@ export function resolveJavaVersionConstant(name: string, fallback: number): numb
 }
 
 function collectPlugins(tokens: Token[], plugins: GradlePluginDescriptor[], kotlin: boolean): void {
+  const declaration = kotlin ? 'plugins-block-kts' : 'plugins-block';
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index] as Token;
+    if (token.type !== 'word') {
+      continue;
+    }
+    if (token.value === 'alias' && tokens[index + 1]?.value === '(') {
+      const reference = readDottedName(new TokenStream(tokens, index + 2));
+      if (reference !== undefined) plugins.push({ id: '', versionRef: reference, applyDeclaration: 'version-catalog-alias' });
+      continue;
+    }
+    if (token.value === 'apply' && tokens[index + 1]?.value === 'plugin') {
+      let cursor = index + 2;
+      if (tokens[cursor]?.value === ':') cursor += 1;
+      const literal = tokens[cursor];
+      if (literal?.type === 'string') {
+        plugins.push({ id: literal.value, applyDeclaration: 'apply-declaration' });
+        index = cursor;
+      }
+      continue;
+    }
+    if (token.value === 'id' || token.value === 'java' || token.value === 'apply') {
+      const open = tokens[index + 1];
+      if (open === undefined) continue;
+      let id: string | undefined;
+      let next = index + 2;
+      if (open.type === 'string') {
+        id = open.value;
+        next = index + 2;
+      } else if (open.value === '(') {
+        const stream = new TokenStream(tokens, index + 1);
+        const body = stream.skipBalanced('(', ')');
+        id = body.find((entry) => entry.type === 'string')?.value;
+        next = stream.offset;
+        if (id === undefined) continue;
+      } else {
+        continue;
+      }
+      if (token.value === 'apply') {
+        plugins.push({ id, applyDeclaration: 'apply-declaration' });
+        index = next - 1;
+        continue;
+      }
+      const versionToken = tokens[next]?.value === 'version' ? tokens[next + 1] : undefined;
+      plugins.push({ id, ...pluginVersionFields(versionToken), applyDeclaration: declaration });
+      index = versionToken === undefined ? next - 1 : next + 1;
+      continue;
+    }
+    if (isVersionLike(token.value) === false) {
+      const versionToken = tokens[index + 1]?.value === 'version' ? tokens[index + 2] : undefined;
+      plugins.push({ id: token.value, ...pluginVersionFields(versionToken), applyDeclaration: declaration });
+      index = versionToken === undefined ? index : index + 2;
+    }
+  }
+}
+
+function pluginVersionFields(versionToken: Token | undefined): { version?: string; versionRef?: string } {
+  if (versionToken === undefined) return {};
+  if (versionToken.type === 'string' && isVersionLike(versionToken.value)) return { version: versionToken.value };
+  if (versionToken.type === 'word' && versionToken.value.length > 0) return { versionRef: versionToken.value };
+  if (versionToken.type === 'string' && versionToken.value.length > 0) return { versionRef: versionToken.value };
+  return {};
+}
+
+function collectClasspath(tokens: Token[], out: string[]): void {
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index] as Token;
     if (token.type === 'string') {
-      const id = token.value;
-      if (isVersionLike(id)) continue;
-      const between = tokens[index + 1];
-      const versionToken =
-        between !== undefined && between.type === 'word' && between.value === 'version' ? tokens[index + 2] : undefined;
-      const version =
-        versionToken !== undefined && versionToken.type === 'string' && isVersionLike(versionToken.value)
-          ? versionToken.value
-          : undefined;
-      plugins.push({ id, version, applyDeclaration: kotlin ? 'plugins-block-kts' : 'plugins-block' });
-      if (versionToken !== undefined) index += 2;
+      const parts = token.value.trim().split(':');
+      if (parts.length < 2 || parts.some((part) => part.length === 0 || part.includes('/') || part.includes(' '))) continue;
+      const normalized = parts.slice(0, 3).join(':');
+      if (out.includes(normalized) === false) out.push(normalized);
       continue;
     }
-    if (token.type === 'word' && (token.value === 'id' || token.value === 'java' || token.value === 'apply')) {
-      const next = tokens[index + 1];
-      if (next !== undefined && next.type === 'string') {
-        plugins.push({ id: next.value, applyDeclaration: `${token.value}-declaration` });
-        index += 1;
-      }
+    if (token.type !== 'word' || (token.value !== 'classpath' && token.value !== 'implementation')) continue;
+    const open = tokens[index + 1];
+    if (open === undefined || open.type !== 'symbol' || open.value !== '(') continue;
+    const stream = new TokenStream(tokens, index + 2);
+    const body = stream.skipBalanced('(', ')');
+    for (const notation of extractNotations(body)) {
+      const parts = notation.trim().split(':');
+      if (parts.length < 2) continue;
+      const normalized = `${parts[0]}:${parts[1]}${parts[2] === undefined ? '' : `:${parts[2]}`}`;
+      if (out.includes(normalized) === false) out.push(normalized);
     }
+    index += 1;
   }
 }
 
@@ -588,12 +664,14 @@ function stringLiterals(tokens: Token[]): string[] {
 function dedupePlugins(plugins: GradlePluginDescriptor[]): GradlePluginDescriptor[] {
   const seen = new Map<string, GradlePluginDescriptor>();
   for (const plugin of plugins) {
-    const existing = seen.get(plugin.id);
+    const key = plugin.id.length > 0 ? plugin.id : `alias:${plugin.versionRef ?? ''}`;
+    const existing = seen.get(key);
     if (existing === undefined) {
-      seen.set(plugin.id, plugin);
-    } else if (existing.version === undefined && plugin.version !== undefined) {
-      seen.set(plugin.id, plugin);
+      seen.set(key, plugin);
+      continue;
     }
+    if (existing.version === undefined && plugin.version !== undefined) existing.version = plugin.version;
+    if (existing.versionRef === undefined && plugin.versionRef !== undefined) existing.versionRef = plugin.versionRef;
   }
   return [...seen.values()];
 }

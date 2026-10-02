@@ -10,6 +10,7 @@ const fixturesRoot = path.join(repoRoot, 'fixtures');
 const PROJECT_FIXTURES = [
   { directory: 'fabric-1.20.1', minecraft: '1.20.1', loader: 'fabric', languages: 'java', buildSystem: 'gradle' },
   { directory: 'forge-1.12.2', minecraft: '1.12.2', loader: 'forge', languages: 'java', buildSystem: 'gradle' },
+  { directory: 'forge-1.20.1', minecraft: '1.20.1', loader: 'forge', languages: 'java', buildSystem: 'gradle' },
   { directory: 'neoforge-1.21', minecraft: '21.1.72', loader: 'neoforge', languages: 'java', buildSystem: 'gradle' },
   { directory: 'quilt-1.20.4', minecraft: '1.20.4', loader: 'quilt', languages: 'java', buildSystem: 'gradle' },
   { directory: 'maven-1.16.5', minecraft: '1.16.5', loader: 'fabric', languages: 'java', buildSystem: 'maven' },

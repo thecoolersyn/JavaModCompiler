@@ -29,6 +29,10 @@ export const resolveStage: Stage = {
     for (const notation of project.gradle?.dependencies.dependencies ?? []) {
       const resolved = resolveGradleNotation(notation, properties);
       if (resolved.startsWith('libs.') || resolved.includes('(')) continue;
+      if (configurationOf(resolved) === 'classpath') {
+        skipped.push(resolved);
+        continue;
+      }
       if (isToolchainManagedDependency(project, resolved, toolchainManaged)) {
         skipped.push(resolved);
         continue;
@@ -59,7 +63,10 @@ export const resolveStage: Stage = {
     }
 
     for (const notation of skipped) {
-      context.logger.info(`Toolchain-managed dependency resolved by the loader build: ${notation}`, 'RESOLVE');
+      context.logger.info(
+        `${notation} is a build plugin or loader-managed dependency and is resolved inside the isolated environment by the delegated build`,
+        'RESOLVE',
+      );
     }
 
     if (direct.length === 0) {
@@ -167,22 +174,31 @@ const MINECRAFT_ARTIFACTS = new Set(['com.mojang:minecraft']);
 const LOADER_GROUPS = new Set(['net.minecraftforge', 'net.neoforged', 'net.neoforged.fancymodloader']);
 
 export function toolchainManagedDependencies(project: ProjectDetection): Set<string> {
-  const pluginIds = (project.gradle?.plugins ?? []).map((plugin) => plugin.id.toLowerCase());
-  const plugins = (project.gradle?.plugins ?? []).map((plugin) => plugin.id.toLowerCase());
-  const loomManaged = plugins.some((id) => /loom|fabric|quilt|forge|neoforge/.test(id));
-  const forgeManaged = plugins.some((id) => /forgegradle|net\.minecraftforge|neoforged/.test(id));
+  const pluginIds = [
+    ...(project.gradle?.plugins ?? []).map((plugin) => plugin.id.toLowerCase()),
+    ...(project.gradle?.buildscriptClasspath ?? []).map((coordinate) => (coordinate.split(':')[0] ?? '').toLowerCase()),
+  ];
+  const plugins = pluginIds;
+  const loomManaged = plugins.some((id) => /loom|fabric|quilt|forge|neoforge/i.test(id));
+  const forgeManaged = plugins.some((id) => /forgegradle|forge\.gradle|net\.minecraftforge|net\.neoforged|neoforged/i.test(id));
   const managed = new Set<string>();
   const optionalManaged = new Set<string>();
+  for (const coordinate of project.gradle?.buildscriptClasspath ?? []) {
+    const parts = coordinate.split(':');
+    if (parts[0] !== undefined && parts[1] !== undefined) managed.add(`${parts[0]}:${parts[1]}`);
+  }
   for (const notation of project.gradle?.dependencies.dependencies ?? []) {
     const configuration = configurationOf(notation);
     const coordinate = parseGradleNotation(coordinatePartOf(notation), project.gradle?.properties ?? {});
     if (coordinate === undefined) continue;
+    const key = `${coordinate.groupId}:${coordinate.artifactId}`;
+    const loaderOwned = LOADER_GROUPS.has(coordinate.groupId) || MINECRAFT_ARTIFACTS.has(key);
     const toolchainManaged =
-      (loomManaged && LOOM_CONFIGURATIONS.has(configuration)) ||
-      (forgeManaged && (configuration === 'minecraft' || configuration === 'mcp' || configuration.startsWith('compile')));
-    if (toolchainManaged) managed.add(`${coordinate.groupId}:${coordinate.artifactId}`);
+      (loomManaged && (LOOM_CONFIGURATIONS.has(configuration) || loaderOwned)) ||
+      (forgeManaged && (configuration === 'minecraft' || configuration === 'mcp' || configuration.startsWith('compile') || loaderOwned));
+    if (toolchainManaged) managed.add(key);
     else if (loomManaged && LOOM_CONFIGURATIONS_OPTIONAL.has(configuration)) {
-      optionalManaged.add(`${coordinate.groupId}:${coordinate.artifactId}`);
+      optionalManaged.add(key);
     }
   }
   if (loomManaged) {
