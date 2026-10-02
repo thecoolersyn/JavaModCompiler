@@ -37,13 +37,13 @@ export const GRADLE_VERSIONS_BY_MAJOR: Record<number, string> = {
 export const GRADLE_COMPATIBILITY_RULES: GradleCompatibilityRule[] = [
   {
     id: 'fabric-loom',
-    pluginPattern: /^fabric-loom$|^net\.fabricmc\.loom$/i,
+    pluginPattern: /^fabric-loom$|^net\.fabricmc\.loom$|^net\.fabricmc\.fabric-loom$|^net\.fabricmc\.fabric-loom-remap$/i,
     minGradleMajor: 7,
-    maxGradleMajor: 8,
+    maxGradleMajor: 9,
     preferredGradle: '8.10.2',
     javaMajor: 17,
-    reason: 'Fabric Loom requires Gradle 7 or 8 and a Java 17 toolchain',
-    source: 'Fabric Loom documentation',
+    reason: 'Fabric Loom supports Gradle 7 to 9, and Loom 1.17 is verified against Gradle 9.6.0',
+    source: 'Fabric Loom plugin releases and a real Loom 1.17.21 build on Gradle 9.6.0',
   },
   {
     id: 'quilt-loom',

@@ -19,7 +19,10 @@ repositories, is detected from the project and supplied by JMC when missing.
 
 * Node.js 22.0 or newer
 * Windows, Linux or macOS on x64 or arm64
-* No system Java, Gradle or Minecraft installation is required
+* No system Java, Gradle or Minecraft installation is required; JMC provisions a
+  managed JDK matching the project's target. Minecraft 26.1 and newer require
+  Java 25, and JMC provisions it the same way it provisions Java 8 for a 1.12.2
+  ForgeGradle 2 build.
 
 CI runs on Linux, Windows and macOS, on x64 runners only. arm64 is untested in
 CI: the platform and architecture detection paths exist and `npm run package`
@@ -179,7 +182,7 @@ proven end to end from the loaders it only detects and parses.
 
 | Loader | Status | Notes |
 | --- | --- | --- |
-| Fabric (Loom) | Detected and parsed only | Loom fixtures and unit tests cover detection, the `fabric.mod.json` mixin checks and artifact selection. No Loom project is built end to end by this repository's test suite, so the production-artifact path is covered by unit tests and by generic Gradle builds that produce a `mymod-1.0.0.jar` beside `mymod-1.0.0-dev.jar`, not by a real Loom build. |
+| Fabric (Loom) | Verified by a real end-to-end build | `tests/integration/fabric-26.3-autotool.test.mjs` builds `fixtures/fabric-26.3-autotool` with Minecraft 26.3, Fabric Loom 1.17.21, Fabric Loader 0.19.5 and Gradle 9.6.0, both directly through the fixture's own Gradle wrapper and again through JMC, then asserts DISCOVER, RESOLVE, PREPARE, COMPILE, PACKAGE and VALIDATE pass and inspects the published JAR |
 | Generic Gradle (`java` plugin) | Verified by a real end-to-end build | CI compiles, packages, validates and reports on a plain Gradle project |
 | NeoForge (ModDevGradle 2.x) | Verified by a real end-to-end build | `tests/integration/loader-builds.test.mjs` builds the `neoforge-1.21` fixture and asserts COMPILE, PACKAGE and VALIDATE all pass |
 | Forge (ForgeGradle 2.x to 7.x) | Detected and parsed only | Per-plugin Gradle and JDK rules are covered by tests, and a real 1.12.2 build selects Gradle 4.10.3 with a managed Java 8 runtime, but ForgeGradle 2.3 no longer resolves from the live Forge maven so the end-to-end build is not claimed |
@@ -190,6 +193,52 @@ A loader marked "detected and parsed only" has its detection, loader metadata
 extraction, toolchain selection and validation rules covered by tests, but no
 supported end-to-end build in this repository. No loader row should be read as a
 claim that a real build passed unless it is marked verified.
+
+### The Minecraft 26.3 AutoTool fixture
+
+`fixtures/fabric-26.3-autotool` is a real Fabric mod, not a stub. It targets the
+versions Fabric currently publishes for Minecraft 26.3 and exists so a synthetic
+test cannot pass while a real loader build fails.
+
+| Aspect | Value |
+| --- | --- |
+| Minecraft | 26.3 (`com.mojang:minecraft:26.3`) |
+| Fabric Loom | 1.17.21, plugin id `net.fabricmc.fabric-loom` |
+| Fabric Loader | 0.19.5 |
+| Fabric API | 0.161.0+26.3 |
+| Gradle | 9.6.0 through the committed wrapper |
+| Java | 25, the version Minecraft 26.3 requires |
+| Mappings | none requested: Minecraft 26.3 publishes no obfuscation mappings |
+| Production artifact | `build/libs/jmc-autotool-1.0.0.jar` |
+
+The mod implements an AutoTool: while a block is being broken it inspects the
+hotbar and switches to a slot that mines the target faster, using the game's own
+`ItemStack.getDestroySpeed(BlockState)` semantics rather than a hard-coded
+block-to-tool table. It only ever changes the selected slot. It is enabled by
+default and toggled with `/jmctool on`, `/jmctool off` and `/jmctool status`.
+
+`tests/integration/fabric-26.3-autotool.test.mjs` verifies, from a cleaned
+fixture each time:
+
+1. The fixture's own `gradlew build` succeeds and produces the Loom artifact.
+2. JMC builds the same fixture and DISCOVER, RESOLVE, PREPARE, COMPILE, PACKAGE
+   and VALIDATE all pass.
+3. The JAR JMC publishes is byte-identical to the Loom production JAR Loom
+   built, so the real artifact is selected rather than something rebuilt.
+4. The JAR is a valid archive whose `fabric.mod.json` parses, carries mod id
+   `jmc_autotool`, version `1.0.0`, a Minecraft `~26.3` dependency, the client
+   entrypoint and the `fabric-client-gametest` entrypoint, with both entrypoint
+   classes packaged.
+5. The AutoTool selection scenarios pass.
+6. The mod loads in a real Minecraft 26.3 client: Fabric Loader starts,
+   discovers `jmc_autotool`, runs the client entrypoint and completes the
+   runtime checks registered under `fabric-client-gametest`.
+
+Two stages are not asserted as `pass` because Loom does not expose them:
+`REMAP` is reported as skipped, since Loom 1.17 remaps inside its own `jar` task
+and publishes no separate remap task for JMC to invoke, and `RUNTIME_TEST` is
+reported as skipped because JMC's own sandbox does not launch a client. The
+client load is verified by step 6 instead.
 
 ## Architecture
 

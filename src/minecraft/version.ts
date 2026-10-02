@@ -101,6 +101,7 @@ export function pickVersionFromEvidence(evidence: VersionEvidence[]): VersionEvi
 export function javaBaselineForVersion(version: string): number {
   const identity = parseMinecraftVersion(version);
   if (identity.major === undefined) return 8;
+  if (identity.major > 1) return 25;
   if (identity.major !== 1) return 21;
   const minor = identity.minor ?? 0;
   const patch = identity.patch ?? 0;
@@ -108,7 +109,9 @@ export function javaBaselineForVersion(version: string): number {
   if (minor === 17) return 16;
   if (minor < 20) return 17;
   if (minor === 20) return patch >= 5 ? 21 : 17;
-  return 21;
+  if (minor === 21) return 21;
+  if (minor < 26) return 21;
+  return 25;
 }
 
 export function formatVersionIdentity(identity: MinecraftVersionIdentity): string {

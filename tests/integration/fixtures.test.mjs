@@ -103,11 +103,13 @@ test('every fixture declares a Minecraft version without a version whitelist', a
 });
 
 test('every fixture avoids comments in its own sources', () => {
+  const generated = new Set(['.gradle', 'build', 'buildSrc', 'run', 'out', 'target', 'node_modules']);
   const offenders = [];
   const walk = (directory) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const full = path.join(directory, entry.name);
       if (entry.isDirectory()) {
+        if (generated.has(entry.name)) continue;
         walk(full);
         continue;
       }

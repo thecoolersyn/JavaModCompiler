@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "jmc_autotool",
+  "version": "${version}",
+  "name": "JMC AutoTool",
+  "description": "Selects a more effective hotbar tool while a block is being broken.",
+  "authors": [
+    "JMC"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/jmc_autotool/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.jmc.autotool.AutoToolClient"
+    ],
+    "fabric-client-gametest": [
+      "com.jmc.autotool.AutoToolGameTest"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

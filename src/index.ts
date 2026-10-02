@@ -9,7 +9,6 @@ import type { MappingDescriptor, MappingCompatibilityReport } from './mappings/t
 import type { DependencyResolutionResult } from './deps/model.js';
 import type { ModLoaderAdapter, Diagnostic, StageStatus } from './core/types.js';
 import type { LoaderDetectionResult } from './loader/detection.js';
-import type { Logger } from './logging/logger.js';
 
 import type { ArgumentParseResult } from './cli/arguments.js';
 import type { LoggerOptions } from './logging/types.js';
@@ -28,6 +27,7 @@ import type { SideValidationInput, SideValidationResult } from './validate/sides
 import type { ScriptDescriptor, ApprovalService } from './security/approval.js';
 import type { GradleSelection } from './gradle/compatibility.js';
 import type { GradleManager } from './gradle/manager.js';
+import { Logger } from './logging/logger.js';
 import type { ProcessRunner } from './platform/process.js';
 import type { GradleProjectModel } from './project/gradle-model.js';
 
@@ -94,6 +94,15 @@ export interface JmcApi {
   fileUriForPath(target: string): Promise<string>;
   lexGradle(source: string): Promise<Array<{ type: string; value: string }>>;
   gradleTaskArguments(options: { clean: boolean; force: boolean }): Promise<string[]>;
+  zipIsValid(filePath: string): Promise<{ valid: boolean; reason?: string }>;
+  jarEntryNames(filePath: string): Promise<string[]>;
+  runProcess(
+    command: string,
+    args: string[],
+    options: { cwd?: string; env?: Record<string, string>; timeoutMs?: number },
+  ): Promise<{ exitCode: number | null; stdout: string; stderr: string; spawnError?: string; timedOut: boolean }>;
+  provisionJava(major: number, home: string): Promise<{ javaHome: string; versionText: string; major: number; managed: boolean }>;
+  findJavaMajor(javaHome: string): Promise<number>;
   toolchainManagedDependenciesFor(projectRoot: string): Promise<string[]>;
   createUpdateChecker(home: string, responder?: (url: string, timeoutMs: number) => Promise<string>): Promise<{
     check(options: {
@@ -169,6 +178,25 @@ export interface JmcApi {
     minecraftVersion?: string;
     javaOverride?: number;
   }): Promise<{ minMajor: number; maxMajor?: number }>;
+}
+
+function silentLogger(): Logger {
+  return new Logger({
+    verbose: false,
+    quiet: true,
+    debug: false,
+    json: true,
+    sinks: [
+      {
+        emit() {
+          return;
+        },
+        async flush() {
+          return undefined;
+        },
+      },
+    ],
+  });
 }
 
 export function createApi(): JmcApi {
@@ -364,6 +392,53 @@ export function createApi(): JmcApi {
     gradleTaskArguments: async (options) => {
       const { gradleTaskArguments } = await import('./loader/base-adapter.js');
       return gradleTaskArguments({ options } as unknown as BuildContext);
+    },
+    zipIsValid: async (filePath) => {
+      const { zipIsValid } = await import('./jar/jar.js');
+      return zipIsValid(filePath);
+    },
+    jarEntryNames: async (filePath) => {
+      const { jarEntryNames } = await import('./jar/jar.js');
+      return jarEntryNames(filePath);
+    },
+    runProcess: async (command, args, options) => {
+      const { ProcessRunner } = await import('./platform/process.js');
+      const runner = new ProcessRunner(options.timeoutMs ?? 45 * 60 * 1000);
+      const result = await runner.run(command, args, {
+        cwd: options.cwd,
+        env: options.env === undefined ? process.env : { ...process.env, ...options.env },
+      });
+      return {
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        spawnError: result.spawnError,
+        timedOut: result.timedOut,
+      };
+    },
+    provisionJava: async (major, home) => {
+      const { JavaRuntimeManager } = await import('./java/runtime-manager.js');
+      const { createPaths, ensurePathTree } = await import('./platform/paths.js');
+      const paths = createPaths({ ...process.env, JMC_HOME: home });
+      ensurePathTree(paths);
+      const manager = new JavaRuntimeManager({ paths, logger: silentLogger(), offline: false });
+      const installation = await manager.resolve({ minMajor: major });
+      return {
+        javaHome: installation.javaHome,
+        versionText: installation.versionText,
+        major: installation.version,
+        managed: installation.origin === 'jmc-managed',
+      };
+    },
+    findJavaMajor: async (javaHome) => {
+      const { defaultFileSystem } = await import('./platform/fs.js');
+      const { JavaRuntimeManager } = await import('./java/runtime-manager.js');
+      const { createPaths } = await import('./platform/paths.js');
+      const { detectPlatform } = await import('./platform/os.js');
+      const paths = createPaths({ ...process.env });
+      const manager = new JavaRuntimeManager({ paths, logger: silentLogger(), offline: true });
+      const installation = manager.describeJavaHome(javaHome, 'system-scan', detectPlatform().arch);
+      return installation?.version ?? 0;
     },
     toolchainManagedDependenciesFor: async (projectRoot: string) => {
       const { detectProject } = await import('./project/detection.js');

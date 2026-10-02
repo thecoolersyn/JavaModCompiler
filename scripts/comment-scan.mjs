@@ -27,7 +27,21 @@ const SCANNED_ROOT_FILES = new Set([
   'LICENSE',
 ]);
 
-const EXCLUDED_DIRECTORIES = new Set(['node_modules', '.git', 'dist', 'dist-release', 'types', '.jmc-build', '.jmc-test-tmp']);
+const EXCLUDED_DIRECTORIES = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'dist-release',
+  'types',
+  '.jmc-build',
+  '.jmc-test-tmp',
+  '.gradle',
+  'build',
+  'buildSrc',
+  'run',
+  'out',
+  'target',
+]);
 
 const HASH_COMMENT_EXTENSIONS = new Set([
   '.sh', '.bash', '.zsh', '.fish', '.gradle', '.kts', '.toml', '.ini', '.cfg', '.properties', '.yaml', '.yml', '.bat', '.cmd',
@@ -39,9 +53,16 @@ const MARKER_RULES = [
   { id: 'todo-marker', test: (text) => /\b(?:TODO|FIXME|XXX|HACK)\b/.test(text) },
 ];
 
+const GENERATED_FILE_NAMES = new Set(['gradlew', 'gradlew.bat', 'gradle-wrapper.jar', 'gradle-wrapper.properties']);
+
+function isGeneratedWrapperFile(filePath) {
+  return GENERATED_FILE_NAMES.has(path.basename(filePath));
+}
+
 function isCommentBearing(filePath) {
   const base = path.basename(filePath);
   if (base === 'package-lock.json') return false;
+  if (isGeneratedWrapperFile(filePath)) return false;
   if (filePath.endsWith('.json') && !filePath.endsWith('.jsonc')) return false;
   if (filePath.endsWith('.md')) return false;
   return SOURCE_EXTENSIONS.has(path.extname(filePath)) || filePath.endsWith('.jsonc');

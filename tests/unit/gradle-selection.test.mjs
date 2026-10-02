@@ -151,13 +151,20 @@ test('a project wrapper version always wins over the plugin rules', async () => 
   assert.equal(selection.javaMajor, 8, 'Gradle 4 must be paired with Java 8');
 });
 
-test('Loom and Kotlin rules keep Gradle 7 or 8', async () => {
+test('Loom supports Gradle 7 to 9 and Kotlin keeps Gradle 7 to 8', async () => {
   const loom = await selectionFor({
     'settings.gradle': "rootProject.name = 'fabric'\n",
     'build.gradle': "plugins { id 'fabric-loom' version '1.6.12' }\n",
   });
-  assert.match(loom.selection.version, /^[78]\./);
+  assert.match(loom.selection.version, /^[789]\./, `Loom must allow Gradle 9, got ${loom.selection.version}`);
   assert.equal(loom.selection.javaMajor, 17);
+
+  const modern = await selectionFor({
+    'settings.gradle': "rootProject.name = 'fabric'\n",
+    'build.gradle': "plugins { id 'net.fabricmc.fabric-loom' version '1.17.21' }\n",
+  });
+  assert.match(modern.selection.version, /^[789]\./, 'the Minecraft 26.x plugin id must match the Loom rule');
+  assert.equal(modern.selection.javaMajor, 17);
 
   const kotlin = await selectionFor({
     'settings.gradle': "rootProject.name = 'kotlin'\n",

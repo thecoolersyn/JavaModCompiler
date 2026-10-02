@@ -122,9 +122,16 @@ export class MavenRepositoryResolver {
         }
         return node;
       }
-      node.resolvedFile = resolution.file;
-      node.repositoryId = resolution.repositoryId;
-      node.status = 'resolved';
+      if (resolution.metadataOnly === true) {
+        node.status = 'resolved';
+        node.notes.push(
+          `Resolved as a ${resolution.packaging ?? 'pom'} module: the repository publishes no binary artifact for it, and its managed dependencies are still traversed`,
+        );
+      } else {
+        node.resolvedFile = resolution.file;
+        node.repositoryId = resolution.repositoryId;
+        node.status = 'resolved';
+      }
 
       if (readPoms && resolution.pomFile !== undefined && depth < maxDepth) {
         const pom = parsePom(this.fs.readText(resolution.pomFile));
@@ -139,6 +146,11 @@ export class MavenRepositoryResolver {
           }
           if (exclusions.has(`${childCoordinate.groupId}:${childCoordinate.artifactId}`)) continue;
           if (child.optional === true) continue;
+          const childKey = formatCoordinate(childCoordinate);
+          if (node.path.includes(childKey)) {
+            node.notes.push(`Skipped a cyclic reference back to ${childKey}`);
+            continue;
+          }
           const childNode = await visit(
             childCoordinate,
             child.scope,
@@ -181,7 +193,17 @@ export class MavenRepositoryResolver {
     repositories: MavenRepository[],
     unresolved?: UnresolvedDependency[],
     node?: DependencyNode,
-  ): Promise<{ file: string; repositoryId: string; pomFile?: string; exclusions: Array<{ groupId: string; artifactId: string }> } | undefined> {
+  ): Promise<
+    | {
+        file: string;
+        repositoryId: string;
+        pomFile?: string;
+        exclusions: Array<{ groupId: string; artifactId: string }>;
+        packaging?: string;
+        metadataOnly?: boolean;
+      }
+    | undefined
+  > {
     const relative = relativeMavenPath(coordinate);
     const localRoot = localMavenRepositoryRoot();
     if (localRoot !== undefined) {
@@ -243,7 +265,11 @@ export class MavenRepositoryResolver {
         const pomFile = await this.ensurePom(target, repository, effective);
         return { file: target, repositoryId: repository.id, pomFile, exclusions: [] };
       } catch (error) {
-        if (error instanceof DownloadError && (error.status === 404 || error.kind === 'http-404')) continue;
+        if (error instanceof DownloadError && (error.status === 404 || error.kind === 'http-404')) {
+          const metadataOnly = await this.resolveMetadataOnly(effective, repository);
+          if (metadataOnly !== undefined) return metadataOnly;
+          continue;
+        }
         this.logger.debug(`Repository ${repository.id} failed for ${formatCoordinate(effective)}: ${(error as Error).message}`, 'Dependencies');
         continue;
       }
@@ -262,6 +288,51 @@ export class MavenRepositoryResolver {
       cause: 'Artifact not found in any configured repository',
     });
     return undefined;
+  }
+
+  private async resolveMetadataOnly(
+    coordinate: MavenCoordinate,
+    repository: MavenRepository,
+  ): Promise<
+    | {
+        file: string;
+        repositoryId: string;
+        pomFile?: string;
+        exclusions: Array<{ groupId: string; artifactId: string }>;
+        packaging?: string;
+        metadataOnly?: boolean;
+      }
+    | undefined
+  > {
+    if (this.options.offline) return undefined;
+    const relative = relativeMavenPath({ ...coordinate, extension: 'pom' });
+    const pomTarget = `${this.options.paths.cacheMaven}/${repository.id}/${relative}`;
+    try {
+      await downloadFile(`${mavenBaseUrl(repository)}${relative}`, pomTarget, {
+        logger: this.logger,
+        offline: this.options.offline,
+        stage: 'Dependencies',
+        retries: 1,
+      });
+    } catch {
+      return undefined;
+    }
+    this.options.cache.store(pomTarget, {
+      kind: 'maven-pom',
+      toolchainKey: repository.id,
+      url: `${mavenBaseUrl(repository)}${relative}`,
+    });
+    const pom = parsePom(this.fs.readText(pomTarget));
+    const packaging = pom.packaging ?? 'jar';
+    if (packaging === 'jar') return undefined;
+    return {
+      file: pomTarget,
+      repositoryId: repository.id,
+      pomFile: pomTarget,
+      exclusions: pom.dependencies.filter((dependency) => dependency.optional === true).map((dependency) => ({ groupId: dependency.groupId, artifactId: dependency.artifactId })),
+      packaging,
+      metadataOnly: true,
+    };
   }
 
   private async ensurePom(jarPath: string, repository: MavenRepository, coordinate: MavenCoordinate): Promise<string | undefined> {

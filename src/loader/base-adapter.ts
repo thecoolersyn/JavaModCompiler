@@ -172,7 +172,22 @@ export function gradleEnvironment(context: BuildContext, javaHome: string | unde
   if (gradleUserHome !== undefined) {
     env.GRADLE_USER_HOME = gradleUserHome;
   }
+  if (process.platform === 'win32') {
+    env.PATH = withWindowsSystemDirectories(env.PATH ?? '');
+  }
   return env;
+}
+
+export function withWindowsSystemDirectories(currentPath: string): string {
+  const systemRoot = process.env.SystemRoot ?? process.env.SYSTEMROOT ?? 'C:\\Windows';
+  const required = [path.join(systemRoot, 'System32'), path.join(systemRoot, 'System32', 'Wbem')];
+  const entries = currentPath.split(path.delimiter).filter((entry) => entry.length > 0);
+  const seen = new Set(entries.map((entry) => entry.toLowerCase()));
+  for (const directory of required) {
+    if (seen.has(directory.toLowerCase())) continue;
+    entries.push(directory);
+  }
+  return entries.join(path.delimiter);
 }
 
 export function gradleTaskArguments(context: BuildContext): string[] {
