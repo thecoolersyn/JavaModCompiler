@@ -2,7 +2,7 @@
 
 JMC is the Java Mod Compiler: a universal command-line tool that compiles, remaps,
 validates and packages Minecraft mods and clients across Minecraft versions and
-toolchains, driven entirely from a terminal.
+toolchains, driven entirely from a terminal. This was built because Claude was giving me errors and crashes when building a client.
 
 ```bash
 cd ./productionmod
