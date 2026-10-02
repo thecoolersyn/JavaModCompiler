@@ -1,7 +1,7 @@
 import path from 'node:path';
 import type { BuildContext, Diagnostic, Stage, StageResult, ValidationReport } from '../core/types.js';
-import { analyzeBytecode, checkJarIntegrity, checkMetadata } from '../validate/bytecode.js';
-import { validateMixins } from '../validate/mixin.js';
+import { analyzeBytecode, checkJarIntegrity, checkMetadata, type MetadataCheckResult } from '../validate/bytecode.js';
+import { validateDeclaredMixinConfigs, validateMixins, type MixinConfigDeclaration } from '../validate/mixin.js';
 import { validateClientServerSides } from '../validate/sides.js';
 import { classFileMajorToJavaMajor, javaVersionToClassFileMajor } from '../bytecode/class-file.js';
 
@@ -103,15 +103,21 @@ export async function runStaticValidation(context: BuildContext, artifactPath: s
     expectedEnvironment: 'both',
   });
   diagnostics.push(...mixin.diagnostics);
+
+  const declaredMixins = validateLoaderDeclaredMixins(artifactPath, metadata);
+  diagnostics.push(...declaredMixins.diagnostics);
+  mixin.configs.push(...declaredMixins.configs);
+
   checks.push({
     id: 'mixins',
     label: 'Static Mixin Validation',
-    status: mixin.passed ? 'pass' : 'failed',
+    status: mixin.passed && declaredMixins.passed ? 'pass' : 'failed',
     detail: [
       `configurations: ${mixin.configs.length}`,
       `declared targets: ${mixin.targets.length}`,
       `missing mixin classes: ${mixin.missingMixinClasses.length}`,
       `refmaps declared: ${mixin.refmapPresence.length}`,
+      ...declaredMixins.detail,
       'runtime mixin behavior was not executed',
     ],
   });
@@ -183,6 +189,48 @@ export async function runStaticValidation(context: BuildContext, artifactPath: s
   });
 
   return { checks, diagnostics };
+}
+
+interface DeclaredMixinValidation {
+  configs: MixinConfigDeclaration[];
+  diagnostics: Diagnostic[];
+  detail: string[];
+  passed: boolean;
+}
+
+function validateLoaderDeclaredMixins(artifactPath: string, metadata: MetadataCheckResult): DeclaredMixinValidation {
+  const documents: Array<{ name: string; value: Record<string, unknown> }> = [];
+  if (metadata.fabricModJson !== undefined) documents.push({ name: 'fabric.mod.json', value: metadata.fabricModJson });
+  const quilt = metadata.quiltModJson;
+  if (quilt !== undefined) documents.push({ name: 'quilt.mod.json', value: quilt });
+  if (documents.length === 0) return { configs: [], diagnostics: [], detail: [], passed: true };
+  const configs: MixinConfigDeclaration[] = [];
+  const diagnostics: Diagnostic[] = [];
+  const detail: string[] = [];
+  let passed = true;
+  for (const document of documents) {
+    const report = validateDeclaredMixinConfigs(artifactPath, document.value, document.name);
+    diagnostics.push(...report.diagnostics);
+    for (const entry of report.declared) {
+      configs.push({
+        configName: entry.config,
+        package: [],
+        mixins: entry.mixinClasses,
+        client: [],
+        server: [],
+        injectors: {},
+        required: true,
+        priority: 1000,
+      });
+    }
+    detail.push(
+      `${document.name} mixin configs: ${report.declared.length}`,
+      `missing configs: ${report.missingConfigs.length}`,
+      `missing mixin classes: ${report.missingMixinClasses.length}`,
+    );
+    if (!report.passed) passed = false;
+  }
+  return { configs, diagnostics, detail, passed };
 }
 
 function detectDependencyConflicts(context: BuildContext): string[] {

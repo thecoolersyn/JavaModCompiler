@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { repoRoot, runCli, tempDir, write } from '../helpers/harness.mjs';
 
 const CI_ENV = {
@@ -83,25 +84,41 @@ test('the bundled launcher runs on this platform', async () => {
   assert.match(output, /^jmc \d+\.\d+\.\d+$/m);
 });
 
+function launcherPath() {
+  return path.join(repoRoot, 'dist', 'bin', process.platform === 'win32' ? 'jmc.cmd' : 'jmc');
+}
+
+function runLauncher(args) {
+  const launcher = launcherPath();
+  if (process.platform !== 'win32') {
+    return spawnSync(launcher, args, { encoding: 'utf8' });
+  }
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'jmc-launcher-test-'));
+  const shim = path.join(directory, 'launcher.cmd');
+  const line = [launcher, ...args].map((value) => `"${value}"`).join(' ');
+  fs.writeFileSync(shim, `@echo off\r\n${line}\r\nexit /b %ERRORLEVEL%\r\n`, 'utf8');
+  try {
+    return spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', shim], { encoding: 'utf8' });
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 test('the shell launcher forwards arguments and exit codes', async () => {
-  const launcher = path.join(repoRoot, 'dist', 'bin', 'jmc');
+  const launcher = launcherPath();
   if (!fs.existsSync(launcher)) {
     assert.ok(false, 'the launcher must exist; run npm run bundle first');
     return;
   }
-  const output = execFileSync(launcher, ['detect', repoRoot], { encoding: 'utf8' });
-  assert.match(output, /Build System:/);
+  const result = runLauncher(['detect', repoRoot]);
+  assert.equal(result.error, undefined, `the launcher must start: ${result.error?.message ?? ''}`);
+  assert.match(result.stdout ?? '', /Build System:/);
 });
 
 test('the shell launcher returns the documented failure exit code', () => {
-  const launcher = path.join(repoRoot, 'dist', 'bin', 'jmc');
-  let status = 0;
-  try {
-    execFileSync(launcher, ['detect', '/nonexistent/project'], { encoding: 'utf8', stdio: 'pipe' });
-  } catch (error) {
-    status = error.status;
-  }
-  assert.equal(status, 2);
+  const result = runLauncher(['detect', '/nonexistent/project']);
+  assert.equal(result.error, undefined, `the launcher must start: ${result.error?.message ?? ''}`);
+  assert.equal(result.status, 2);
 });
 
 test('the windows launcher script is generated', () => {

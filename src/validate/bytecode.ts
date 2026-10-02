@@ -207,6 +207,7 @@ export function checkJarIntegrity(jarPath: string): JarIntegrityResult {
 export interface MetadataCheckResult {
   manifest?: Record<string, string>;
   fabricModJson?: Record<string, unknown>;
+  quiltModJson?: Record<string, unknown>;
   modsToml?: string;
   diagnostics: Diagnostic[];
   loaderDetected: string | undefined;
@@ -235,6 +236,30 @@ export function checkMetadata(jarPath: string): MetadataCheckResult {
         detected: [(error as Error).message],
         cause: 'The loader metadata file is not valid JSON.',
         suggestions: ['Fix the JSON syntax of fabric.mod.json.'],
+        evidence: [],
+        rawMessages: [(error as Error).message],
+      });
+    }
+  }
+  const quiltEntry = entries.find((entry) => entry.toLowerCase() === 'quilt.mod.json');
+  if (quiltEntry !== undefined) {
+    if (result.loaderDetected === undefined) result.loaderDetected = 'quilt';
+    try {
+      const archive = openZip(jarPath);
+      const entry = archive.entries.find((candidate) => candidate.name === quiltEntry);
+      if (entry !== undefined) {
+        result.quiltModJson = JSON.parse(archive.read(entry).toString('utf8')) as Record<string, unknown>;
+      }
+    } catch (error) {
+      result.diagnostics.push({
+        id: 'quilt-mod-json-invalid',
+        severity: 'error',
+        title: 'Metadata',
+        summary: 'quilt.mod.json could not be parsed',
+        stage: 'VALIDATE',
+        detected: [(error as Error).message],
+        cause: 'The loader metadata file is not valid JSON.',
+        suggestions: ['Fix the JSON syntax of quilt.mod.json.'],
         evidence: [],
         rawMessages: [(error as Error).message],
       });

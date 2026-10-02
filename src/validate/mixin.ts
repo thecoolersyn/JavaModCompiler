@@ -362,6 +362,93 @@ function readClassMixinTarget(model: ClassModel): string | undefined {
   return undefined;
 }
 
+export interface DeclaredMixinConfigReport {
+  declared: Array<{ config: string; present: boolean; mixinClasses: string[]; missingMixinClasses: string[] }>;
+  missingConfigs: string[];
+  missingMixinClasses: string[];
+  diagnostics: Diagnostic[];
+  passed: boolean;
+}
+
+function loaderMetadataMixinConfigs(metadata: Record<string, unknown>): string[] {
+  const raw = metadata.mixin;
+  if (typeof raw === 'string') return [raw];
+  if (Array.isArray(raw) === false) return [];
+  return raw
+    .map((entry) => (typeof entry === 'string' ? entry : ((entry as { config?: unknown }).config as unknown)))
+    .filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+}
+
+export function validateDeclaredMixinConfigs(jarPath: string, metadata: Record<string, unknown>, metadataName: string): DeclaredMixinConfigReport {
+  const archive = openZip(jarPath);
+  const entryNames = archive.entries.filter((entry) => !entry.isDirectory).map((entry) => entry.name);
+  const available = new Set(entryNames.filter((name) => name.endsWith('.class')).map((name) => name.slice(0, -6)));
+  const declared: DeclaredMixinConfigReport['declared'] = [];
+  const missingConfigs: string[] = [];
+  const missingMixinClasses: string[] = [];
+  const diagnostics: Diagnostic[] = [];
+
+  for (const configPath of loaderMetadataMixinConfigs(metadata)) {
+    const normalized = configPath.replace(/^\.\//, '');
+    const entry = archive.entries.find((candidate) => candidate.name === normalized || candidate.name.toLowerCase() === normalized.toLowerCase());
+    if (entry === undefined) {
+      missingConfigs.push(normalized);
+      declared.push({ config: normalized, present: false, mixinClasses: [], missingMixinClasses: [] });
+      continue;
+    }
+    const config = parseMixinConfig(archive.read(entry).toString('utf8'), normalized);
+    const referenced: string[] = [];
+    const absent: string[] = [];
+    for (const relative of [...config.mixins, ...config.client, ...config.server]) {
+      const fqn = config.package.length > 0 ? `${config.package.join('.')}.${relative}` : relative;
+      referenced.push(fqn);
+      if (available.has(fqn.replace(/\./g, '/')) === false) absent.push(fqn);
+    }
+    missingMixinClasses.push(...absent);
+    declared.push({ config: normalized, present: true, mixinClasses: referenced, missingMixinClasses: absent });
+  }
+
+  if (missingConfigs.length > 0) {
+    diagnostics.push({
+      id: 'mixin-config-not-packaged',
+      severity: 'error',
+      title: 'Static Mixin Validation',
+      summary: `${missingConfigs.length} mixin configuration${missingConfigs.length === 1 ? '' : 's'} listed in ${metadataName} ${missingConfigs.length === 1 ? 'is' : 'are'} absent from the artifact`,
+      stage: 'VALIDATE',
+      detected: missingConfigs,
+      cause: `${metadataName} declares a mixin configuration that the build did not package into the JAR.`,
+      suggestions: [
+        'Move the mixin configuration into src/main/resources so the packaging task includes it.',
+        'Check that the mixin configuration file name matches the entry declared in the loader metadata exactly.',
+      ],
+      evidence: [`metadata: ${metadataName}`],
+      rawMessages: [],
+    });
+  }
+  if (missingMixinClasses.length > 0) {
+    diagnostics.push({
+      id: 'declared-mixin-class-missing',
+      severity: 'error',
+      title: 'Static Mixin Validation',
+      summary: `${missingMixinClasses.length} mixin class${missingMixinClasses.length === 1 ? '' : 'es'} named by ${metadataName} ${missingMixinClasses.length === 1 ? 'is' : 'are'} absent from the artifact`,
+      stage: 'VALIDATE',
+      detected: missingMixinClasses.slice(0, 20),
+      cause: 'The loader metadata points at mixin classes that the build did not package.',
+      suggestions: ['Compile and package every mixin class named by the configuration, or remove the stale entries.'],
+      evidence: [`metadata: ${metadataName}`],
+      rawMessages: [],
+    });
+  }
+
+  return {
+    declared,
+    missingConfigs,
+    missingMixinClasses,
+    diagnostics,
+    passed: diagnostics.length === 0,
+  };
+}
+
 export function collectMixinSummary(result: MixinValidationResult): string[] {
   const lines: string[] = [];
   lines.push(`mixin configurations: ${result.configs.length}`);

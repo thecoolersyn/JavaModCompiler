@@ -249,6 +249,72 @@ test('unsafe archive entry names are rejected', async () => {
   assert.equal(result.code, 0);
 });
 
+test('declared fabric mixin configurations must be present in the jar with their classes', async () => {
+  const root = tempDir('validate-declared-mixins');
+  const config = JSON.stringify({ required: true, package: 'com.example.mixin', mixins: ['PresentMixin'] });
+  const jarPath = simpleJar(root, [
+    { name: 'META-INF/MANIFEST.MF', data: Buffer.from('Manifest-Version: 1.0\n') },
+    { name: 'fabric.mod.json', data: Buffer.from(JSON.stringify({ schemaVersion: 1, id: 'fixture', version: '1.0.0', mixin: ['example.mixins.json'] }), 'utf8') },
+    { name: 'example.mixins.json', data: Buffer.from(config, 'utf8') },
+    { name: 'com/example/mixin/PresentMixin.class', data: classFile(JAVA17_CLASS_MAJOR, 'com/example/mixin/PresentMixin') },
+  ]);
+  const metadata = await api.checkMetadata(jarPath);
+  const report = await api.validateDeclaredMixinConfigs(jarPath, metadata.fabricModJson, 'fabric.mod.json');
+  assert.equal(report.missingConfigs.length, 0);
+  assert.deepEqual(report.missingMixinClasses, []);
+  assert.equal(report.declared.length, 1);
+  assert.equal(report.declared[0].config, 'example.mixins.json');
+  assert.deepEqual(report.declared[0].mixinClasses, ['com.example.mixin.PresentMixin']);
+  assert.equal(report.passed, true);
+});
+
+test('a fabric mixin configuration missing from the jar is reported as a failure', async () => {
+  const root = tempDir('validate-declared-mixins-missing-config');
+  const jarPath = simpleJar(root, [
+    { name: 'fabric.mod.json', data: Buffer.from(JSON.stringify({ schemaVersion: 1, id: 'fixture', version: '1.0.0', mixin: ['absent.mixins.json'] }), 'utf8') },
+    { name: 'com/example/mixin/PresentMixin.class', data: classFile(JAVA17_CLASS_MAJOR, 'com/example/mixin/PresentMixin') },
+  ]);
+  const report = await api.validateDeclaredMixinConfigs(
+    jarPath,
+    { mixin: ['absent.mixins.json'] },
+    'fabric.mod.json',
+  );
+  assert.deepEqual(report.missingConfigs, ['absent.mixins.json']);
+  const diagnostic = report.diagnostics.find((entry) => entry.id === 'mixin-config-not-packaged');
+  assert.ok(diagnostic !== undefined);
+  assert.equal(diagnostic.severity, 'error');
+  assert.match(diagnostic.summary, /fabric\.mod\.json/);
+  assert.equal(report.passed, false);
+});
+
+test('mixin classes named by quilt metadata must be packaged', async () => {
+  const root = tempDir('validate-quilt-mixins');
+  const config = JSON.stringify({ package: 'com.example.quilt', mixins: ['AbsentMixin'] });
+  const jarPath = simpleJar(root, [
+    { name: 'quilt.mod.json', data: Buffer.from(JSON.stringify({ schema_version: 1, quilt_loader: 'javafml', id: 'fixture' }), 'utf8') },
+    { name: 'fixture.mixins.json', data: Buffer.from(config, 'utf8') },
+  ]);
+  const metadata = await api.checkMetadata(jarPath);
+  assert.equal(metadata.quiltModJson !== undefined, true);
+  const report = await api.validateDeclaredMixinConfigs(
+    jarPath,
+    { mixin: [{ config: 'fixture.mixins.json' }] },
+    'quilt.mod.json',
+  );
+  assert.deepEqual(report.missingConfigs, []);
+  assert.deepEqual(report.missingMixinClasses, ['com.example.quilt.AbsentMixin']);
+  const diagnostic = report.diagnostics.find((entry) => entry.id === 'declared-mixin-class-missing');
+  assert.ok(diagnostic !== undefined);
+  assert.equal(diagnostic.severity, 'error');
+});
+
+test('a quilt metadata document that is not valid json is reported', async () => {
+  const root = tempDir('validate-quilt-metadata');
+  const jarPath = simpleJar(root, [{ name: 'quilt.mod.json', data: Buffer.from('{ not json', 'utf8') }]);
+  const metadata = await api.checkMetadata(jarPath);
+  assert.ok(metadata.diagnostics.some((entry) => entry.id === 'quilt-mod-json-invalid'));
+});
+
 function silent() {
   const { Writable } = globalThis.__jmcWritable ?? {};
   void Writable;
