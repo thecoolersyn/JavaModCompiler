@@ -257,6 +257,8 @@ test('a real Loom-style build publishes the unsuffixed production jar', { timeou
       "    archiveBaseName = 'mymod'",
       "    archiveVersion = '1.0.0'",
       "    archiveClassifier = 'dev'",
+      "    from sourceSets.main.output",
+      "    from(layout.projectDirectory.file('src/remapInput'))",
       '}',
       "tasks.register('remapJar', Jar) {",
       "    archiveBaseName = 'mymod'",
@@ -270,6 +272,7 @@ test('a real Loom-style build publishes the unsuffixed production jar', { timeou
   write(project, 'settings.gradle', "rootProject.name = 'mymod'\n");
   write(project, 'gradle.properties', 'minecraft_version=1.20.1\n');
   write(project, 'src/main/java/com/example/LoomStyle.java', 'package com.example;\npublic class LoomStyle {}\n');
+  write(project, 'src/remapInput/dev-only-marker.txt', 'only present in the development jar\n');
   write(
     project,
     'src/main/resources/fabric.mod.json',

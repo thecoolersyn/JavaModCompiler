@@ -93,6 +93,7 @@ export interface JmcApi {
   buildBatchCommandLine(command: string, args: string[]): Promise<string>;
   fileUriForPath(target: string): Promise<string>;
   lexGradle(source: string): Promise<Array<{ type: string; value: string }>>;
+  gradleTaskArguments(options: { clean: boolean; force: boolean }): Promise<string[]>;
   toolchainManagedDependenciesFor(projectRoot: string): Promise<string[]>;
   createUpdateChecker(home: string, responder?: (url: string, timeoutMs: number) => Promise<string>): Promise<{
     check(options: {
@@ -359,6 +360,10 @@ export function createApi(): JmcApi {
     lexGradle: async (source: string) => {
       const { lex } = await import('./project/gradle-lexer.js');
       return lex(source).map((token) => ({ type: token.type, value: token.value }));
+    },
+    gradleTaskArguments: async (options) => {
+      const { gradleTaskArguments } = await import('./loader/base-adapter.js');
+      return gradleTaskArguments({ options } as unknown as BuildContext);
     },
     toolchainManagedDependenciesFor: async (projectRoot: string) => {
       const { detectProject } = await import('./project/detection.js');

@@ -133,3 +133,14 @@ test('the harness temporary directory used by the space fixture is unique per te
   const third = tempDir('space-unique-c');
   assert.equal(fs.existsSync(third), true);
 });
+
+test('--clean and --force reach the delegated Gradle invocation', async () => {
+  const args = await api.gradleTaskArguments({ clean: true, force: true });
+  assert.deepEqual(args, ['--rerun-tasks', '--refresh-dependencies']);
+  const cleanOnly = await api.gradleTaskArguments({ clean: true, force: false });
+  assert.deepEqual(cleanOnly, ['--rerun-tasks'], '--clean must re-run tasks rather than force a network refresh');
+  const forceOnly = await api.gradleTaskArguments({ clean: false, force: true });
+  assert.deepEqual(forceOnly, ['--refresh-dependencies'], '--force must refresh dependency metadata rather than re-run tasks');
+  const neither = await api.gradleTaskArguments({ clean: false, force: false });
+  assert.deepEqual(neither, [], 'a build without the flags must pass no extra arguments');
+});
