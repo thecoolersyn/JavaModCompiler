@@ -9,7 +9,7 @@ import { looksLikeMappingsDirectory } from '../mappings/providers.js';
 import { javaBaselineForVersion, parseMinecraftVersion } from '../minecraft/version.js';
 import { createBuiltinLoaders } from '../loader/builtin-adapters.js';
 import { GenericGradleAdapter } from '../loader/generic-gradle.js';
-import { BUILD_SCRIPT_CANDIDATES, collectBuildScripts } from '../security/approval.js';
+import { collectBuildScripts } from '../security/approval.js';
 
 export const discoverStage: Stage = {
   id: 'DISCOVER',
@@ -29,16 +29,13 @@ export const discoverStage: Stage = {
       for (const adapter of createBuiltinLoaders()) registry.register(adapter);
     }
 
-    const scripts = collectBuildScripts(root, BUILD_SCRIPT_CANDIDATES);
+    const scripts = collectBuildScripts(root);
     if (scripts.length > 0) {
       const decision = await context.services.approvals.requireAuthorization({
         projectRoot: root,
         buildSystem: project.buildTool,
         scripts,
-        warningText: [
-          'A project build can execute build-system code on this machine.',
-          `The following scripts would run: ${scripts.map((script) => script.path).join(', ')}`,
-        ],
+        warningText: ['A project build can execute build-system code on this machine.'],
       });
       context.requiresAuthorization = true;
       context.authorized = decision.allowed;
@@ -57,7 +54,7 @@ export const discoverStage: Stage = {
                 'Set JMC_TRUST_PROJECT_SCRIPTS=1 to trust projects in a controlled CI environment.',
               ],
               evidence: decision.buildScripts,
-              rawMessages: [],
+              rawMessages: decision.warnings,
             },
           ],
         };

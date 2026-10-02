@@ -107,6 +107,9 @@ export function createBuildContext(input: CreateContextInput): BuildContext {
           rl.close();
         }
       },
+      output: (line: string) => {
+        input.logger.warn(line, 'DISCOVER');
+      },
     });
   const loaderRegistry = input.services?.loaderRegistry ?? new LoaderRegistry();
 

@@ -22,7 +22,13 @@ import type { RemapRequest, RemapResult } from './remap/service.js';
 import type { JarInspection } from './jar/jar.js';
 import type { BytecodeCheckInput, BytecodeCheckResult } from './validate/bytecode.js';
 import type { MixinValidationInput, MixinValidationResult } from './validate/mixin.js';
+import type { DeclaredMixinConfigReport } from './validate/mixin.js';
+import type { MetadataCheckResult } from './validate/bytecode.js';
 import type { SideValidationInput, SideValidationResult } from './validate/sides.js';
+import type { ScriptDescriptor, ApprovalService } from './security/approval.js';
+import type { GradleSelection } from './gradle/compatibility.js';
+import type { GradleManager } from './gradle/manager.js';
+import type { GradleProjectModel } from './project/gradle-model.js';
 
 export type {
   ArgumentParseResult,
@@ -75,6 +81,27 @@ export interface JmcApi {
   analyzeBytecode(input: BytecodeCheckInput): Promise<BytecodeCheckResult>;
   validateMixins(input: MixinValidationInput): Promise<MixinValidationResult>;
   validateClientServerSides(input: SideValidationInput): Promise<SideValidationResult>;
+  validateDeclaredMixinConfigs(
+    jarPath: string,
+    metadata: Record<string, unknown>,
+    metadataName: string,
+  ): Promise<DeclaredMixinConfigReport>;
+  checkMetadata(jarPath: string): Promise<MetadataCheckResult>;
+  collectBuildScripts(projectRoot: string): Promise<ScriptDescriptor[]>;
+  digestOfScripts(scripts: ScriptDescriptor[]): Promise<string>;
+  createApprovalService(options: {
+    home: string;
+    assumeYes: boolean;
+    isCi: boolean;
+    trustEnvironmentVariable?: string;
+    interactive: boolean;
+    answer?: string;
+    emitted?: string[];
+  }): Promise<ApprovalService>;
+  selectGradleVersion(model: GradleProjectModel | undefined): Promise<GradleSelection>;
+  javaRequiredForGradleVersion(gradleVersion: string): Promise<number>;
+  createGradleManager(options: { home: string; offline: boolean; quiet?: boolean }): Promise<GradleManager>;
+  javaRequiredForProject(model: GradleProjectModel | undefined): Promise<number>;
 }
 
 export function createApi(): JmcApi {
@@ -161,6 +188,79 @@ export function createApi(): JmcApi {
     validateClientServerSides: async (input) => {
       const { validateClientServerSides } = await import('./validate/sides.js');
       return validateClientServerSides(input);
+    },
+    collectBuildScripts: async (projectRoot) => {
+      const { collectBuildScripts } = await import('./security/approval.js');
+      return collectBuildScripts(projectRoot);
+    },
+    digestOfScripts: async (scripts) => {
+      const { digestOfScripts } = await import('./security/approval.js');
+      return digestOfScripts(scripts);
+    },
+    createApprovalService: async (options) => {
+      const { ApprovalService } = await import('./security/approval.js');
+      const { createPaths, ensurePathTree } = await import('./platform/paths.js');
+      const paths = createPaths({ ...process.env, JMC_HOME: options.home });
+      ensurePathTree(paths);
+      const answer = options.answer;
+      const emitted = options.emitted;
+      return new ApprovalService({
+        paths,
+        assumeYes: options.assumeYes,
+        isCi: options.isCi,
+        trustEnvironmentVariable: options.trustEnvironmentVariable,
+        interactive: options.interactive,
+        input: async () => answer,
+        output: (line) => {
+          if (emitted !== undefined) emitted.push(line);
+          else process.stderr.write(`${line}\n`);
+        },
+      });
+    },
+    selectGradleVersion: async (model) => {
+      const { selectGradleVersion } = await import('./gradle/compatibility.js');
+      return selectGradleVersion(model);
+    },
+    javaRequiredForGradleVersion: async (gradleVersion) => {
+      const { javaRequiredForGradleVersion } = await import('./gradle/manager.js');
+      return javaRequiredForGradleVersion(gradleVersion);
+    },
+    createGradleManager: async (options) => {
+      const { GradleManager } = await import('./gradle/manager.js');
+      const { createPaths, ensurePathTree } = await import('./platform/paths.js');
+      const { Logger } = await import('./logging/logger.js');
+      const paths = createPaths({ ...process.env, JMC_HOME: options.home });
+      ensurePathTree(paths);
+      const quiet = options.quiet ?? true;
+      const logger = new Logger({
+        verbose: false,
+        quiet,
+        debug: false,
+        json: true,
+        sinks: [
+          {
+            emit(record) {
+              if (!quiet) process.stderr.write(`[gradle] ${record.message}\n`);
+            },
+            async flush() {
+              return undefined;
+            },
+          },
+        ],
+      });
+      return new GradleManager({ paths, logger, offline: options.offline });
+    },
+    javaRequiredForProject: async (model) => {
+      const { javaRequiredForProjectForModel } = await import('./gradle/compatibility.js');
+      return javaRequiredForProjectForModel(model);
+    },
+    validateDeclaredMixinConfigs: async (jarPath, metadata, metadataName) => {
+      const { validateDeclaredMixinConfigs } = await import('./validate/mixin.js');
+      return validateDeclaredMixinConfigs(jarPath, metadata, metadataName);
+    },
+    checkMetadata: async (jarPath) => {
+      const { checkMetadata } = await import('./validate/bytecode.js');
+      return checkMetadata(jarPath);
     },
   };
 }
