@@ -110,10 +110,15 @@ export async function downloadFile(url: string, destination: string, options: Do
 
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     const temporary = `${destination}.part-${process.pid}-${attempt}`;
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => {
+      controller.abort(new Error(`transfer exceeded ${timeoutMs} ms`));
+    }, timeoutMs);
     try {
       const response = await fetchWithDiagnostics(url, {
         redirect: 'follow',
         headers: { 'user-agent': 'jmc/1.0 (+java-mod-compiler)', ...options.headers },
+        signal: controller.signal,
       });
       if (response.body === null) {
         throw new DownloadError('partial', url, `Empty response body for ${url}`);
@@ -123,9 +128,11 @@ export async function downloadFile(url: string, destination: string, options: Do
       let received = 0;
       const hashed = crypto.createHash('sha256');
       let lastChunkAt = Date.now();
+      const source = Readable.fromWeb(response.body as never);
       const stallGuard = setInterval(() => {
         if (Date.now() - lastChunkAt > STALL_TIMEOUT_MS) {
-          writeStream.destroy(new Error(`transfer stalled for ${STALL_TIMEOUT_MS} ms`));
+          controller.abort(new Error(`transfer stalled for ${STALL_TIMEOUT_MS} ms`));
+          source.destroy(new Error(`transfer stalled for ${STALL_TIMEOUT_MS} ms`));
         }
       }, 5_000);
       const counter = new PassThrough({
@@ -139,9 +146,11 @@ export async function downloadFile(url: string, destination: string, options: Do
       });
       const writeStream = createWriteStream(temporary);
       try {
-        await pipeline(Readable.fromWeb(response.body as never), counter, writeStream);
+        await pipeline(source, counter, writeStream);
       } finally {
         clearInterval(stallGuard);
+        source.destroy();
+        await response.body.cancel().catch(() => undefined);
       }
       const actualSha256 = hashed.digest('hex');
       if (options.expectedSha256 !== undefined && !equalsIgnoreCase(options.expectedSha256, actualSha256)) {
@@ -164,8 +173,10 @@ export async function downloadFile(url: string, destination: string, options: Do
         throw new DownloadError('partial', url, `Truncated download of ${url}: expected ${total} bytes, received ${received}`);
       }
       await fsp.rename(temporary, destination);
+      clearTimeout(abortTimer);
       return;
     } catch (error) {
+      clearTimeout(abortTimer);
       await fsp.rm(temporary, { force: true }).catch(() => undefined);
       const classified =
         error instanceof DownloadError
